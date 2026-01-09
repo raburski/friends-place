@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useSession } from "../auth/useSession";
-import { apiGet } from "../api/client";
+import { apiGet, apiPost } from "../api/client";
 
 type Booking = {
   id: string;
@@ -61,6 +61,40 @@ export function BookingsScreen() {
               {booking.startDate} → {booking.endDate}
             </Text>
             <Text style={styles.cardText}>Status: {booking.status}</Text>
+            {booking.status === "requested" ? (
+              <View style={styles.buttonRow}>
+                <Pressable
+                  style={styles.smallButton}
+                  onPress={async () => {
+                    if (!session) return;
+                    await apiPost(`/api/bookings/${booking.id}/approve`, session.token);
+                    setAtMyPlaces((current) =>
+                      current.map((item) =>
+                        item.id === booking.id ? { ...item, status: "approved" } : item
+                      )
+                    );
+                  }}
+                >
+                  <Text style={styles.smallButtonText}>Akceptuj</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.smallButton, styles.secondaryButton]}
+                  onPress={async () => {
+                    if (!session) return;
+                    await apiPost(`/api/bookings/${booking.id}/decline`, session.token);
+                    setAtMyPlaces((current) =>
+                      current.map((item) =>
+                        item.id === booking.id ? { ...item, status: "declined" } : item
+                      )
+                    );
+                  }}
+                >
+                  <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>
+                    Odrzuć
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         ))
       )}
@@ -112,5 +146,27 @@ const styles = StyleSheet.create({
   cardText: {
     fontSize: 13,
     color: "#4b4b4b"
+  },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10
+  },
+  smallButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "#2c7a7b"
+  },
+  smallButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 12
+  },
+  secondaryButton: {
+    backgroundColor: "#f3e9d2"
+  },
+  secondaryButtonText: {
+    color: "#7c5a00"
   }
 });
