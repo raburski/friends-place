@@ -4,8 +4,9 @@ import { headers } from "next/headers";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-function tokenFromRequest(request?: NextRequest) {
-  const authHeader = request?.headers.get("authorization") ?? headers().get("authorization");
+async function tokenFromRequest(request?: NextRequest) {
+  const authHeader =
+    request?.headers.get("authorization") ?? (await headers()).get("authorization");
   if (!authHeader) {
     return null;
   }
@@ -17,7 +18,7 @@ function tokenFromRequest(request?: NextRequest) {
 }
 
 export async function requireSession(request?: NextRequest) {
-  const token = tokenFromRequest(request);
+  const token = await tokenFromRequest(request);
   if (token) {
     const appSession = await prisma.appSession.findFirst({
       where: {
