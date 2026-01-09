@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useSession } from "../auth/useSession";
 import { apiGet, apiPost } from "../api/client";
+import { formatDate } from "../utils/date";
 
 type Booking = {
   id: string;
@@ -44,7 +45,7 @@ export function BookingsScreen() {
           <View key={booking.id} style={styles.card}>
             <Text style={styles.cardTitle}>Pobyt</Text>
             <Text style={styles.cardText}>
-              {booking.startDate} → {booking.endDate}
+              {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
             </Text>
             <Text style={styles.cardText}>Status: {booking.status}</Text>
           </View>
@@ -58,9 +59,11 @@ export function BookingsScreen() {
           <View key={booking.id} style={styles.card}>
             <Text style={styles.cardTitle}>Rezerwacja</Text>
             <Text style={styles.cardText}>
-              {booking.startDate} → {booking.endDate}
+              {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
             </Text>
-            <Text style={styles.cardText}>Status: {booking.status}</Text>
+            <Text style={[styles.cardText, styles.statusBadge, styles[`status_${booking.status}`]]}>
+              {booking.status}
+            </Text>
             {booking.status === "requested" ? (
               <View style={styles.buttonRow}>
                 <Pressable
@@ -146,6 +149,30 @@ const styles = StyleSheet.create({
   cardText: {
     fontSize: 13,
     color: "#4b4b4b"
+  },
+  statusBadge: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    textTransform: "uppercase"
+  },
+  status_requested: {
+    backgroundColor: "#fef3c7",
+    color: "#92400e"
+  },
+  status_approved: {
+    backgroundColor: "#dcfce7",
+    color: "#166534"
+  },
+  status_declined: {
+    backgroundColor: "#fee2e2",
+    color: "#991b1b"
+  },
+  status_canceled: {
+    backgroundColor: "#e5e7eb",
+    color: "#374151"
   },
   buttonRow: {
     flexDirection: "row",
