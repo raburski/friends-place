@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useSession } from "../auth/useSession";
@@ -21,6 +21,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const [newRangeStart, setNewRangeStart] = useState(new Date());
   const [newRangeEnd, setNewRangeEnd] = useState(new Date());
   const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -122,6 +123,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                     });
                     setStatus("Dostępność dodana.");
                     setNeedsConfirm(false);
+                    setConfirmVisible(false);
                     const payload = await apiGet<{
                       ok: boolean;
                       data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
@@ -130,16 +132,15 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                   } catch (error) {
                     if (error instanceof ApiError && error.status === 409) {
                       setNeedsConfirm(true);
-                      setStatus("Wykryto konflikt. Potwierdź dodanie.");
+                      setConfirmVisible(true);
+                      setStatus("Wykryto konflikt.");
                       return;
                     }
                     setStatus("Nie udało się dodać dostępności.");
                   }
                 }}
               >
-                <Text style={styles.buttonText}>
-                  {needsConfirm ? "Potwierdź mimo konfliktu" : "Zapisz dostępność"}
-                </Text>
+                <Text style={styles.buttonText}>Zapisz dostępność</Text>
               </Pressable>
             </View>
           ) : null}
@@ -175,6 +176,57 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
         ))
       )}
       {status ? <Text style={styles.status}>{status}</Text> : null}
+      <Modal transparent visible={confirmVisible} animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Konflikt dostępności</Text>
+            <Text style={styles.modalText}>
+              Wykryto rezerwacje w tym terminie. Dodać dostępność mimo konfliktu?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.button, styles.secondaryButton]}
+                onPress={() => {
+                  setConfirmVisible(false);
+                  setNeedsConfirm(false);
+                }}
+              >
+                <Text style={[styles.buttonText, styles.secondaryButtonText]}>Anuluj</Text>
+              </Pressable>
+              <Pressable
+                style={styles.button}
+                onPress={async () => {
+                  if (!session) return;
+                  try {
+                    await apiPost("/api/availability", session.token, {
+                      placeId,
+                      ranges: [
+                        {
+                          startDate: newRangeStart.toISOString(),
+                          endDate: newRangeEnd.toISOString()
+                        }
+                      ],
+                      confirm: true
+                    });
+                    setStatus("Dostępność dodana.");
+                    setConfirmVisible(false);
+                    setNeedsConfirm(false);
+                    const payload = await apiGet<{
+                      ok: boolean;
+                      data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
+                    }>(`/api/availability/place/${placeId}`, session.token);
+                    setAvailability(payload.data?.ranges ?? []);
+                  } catch {
+                    setStatus("Nie udało się dodać dostępności.");
+                  }
+                }}
+              >
+                <Text style={styles.buttonText}>Dodaj mimo to</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -229,6 +281,35 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#fff",
     borderRadius: 12
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8
+  },
+  modalText: {
+    fontSize: 14,
+    color: "#4b4b4b",
+    marginBottom: 16
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12
   },
   status: {
     marginTop: 12,
