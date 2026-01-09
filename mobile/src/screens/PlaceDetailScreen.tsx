@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useSession } from "../auth/useSession";
-import { apiGet, apiPost } from "../api/client";
+import { apiGet, apiPost, ApiError } from "../api/client";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "../utils/date";
 
@@ -20,6 +20,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const [ownerMode, setOwnerMode] = useState(false);
   const [newRangeStart, setNewRangeStart] = useState(new Date());
   const [newRangeEnd, setNewRangeEnd] = useState(new Date());
+  const [needsConfirm, setNeedsConfirm] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -116,20 +117,29 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                           startDate: newRangeStart.toISOString(),
                           endDate: newRangeEnd.toISOString()
                         }
-                      ]
+                      ],
+                      confirm: needsConfirm
                     });
                     setStatus("Dostępność dodana.");
+                    setNeedsConfirm(false);
                     const payload = await apiGet<{
                       ok: boolean;
                       data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
                     }>(`/api/availability/place/${placeId}`, session.token);
                     setAvailability(payload.data?.ranges ?? []);
-                  } catch {
+                  } catch (error) {
+                    if (error instanceof ApiError && error.status === 409) {
+                      setNeedsConfirm(true);
+                      setStatus("Wykryto konflikt. Potwierdź dodanie.");
+                      return;
+                    }
                     setStatus("Nie udało się dodać dostępności.");
                   }
                 }}
               >
-                <Text style={styles.buttonText}>Zapisz dostępność</Text>
+                <Text style={styles.buttonText}>
+                  {needsConfirm ? "Potwierdź mimo konfliktu" : "Zapisz dostępność"}
+                </Text>
               </Pressable>
             </View>
           ) : null}

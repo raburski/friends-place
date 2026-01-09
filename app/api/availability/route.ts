@@ -60,10 +60,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const created = await prisma.availabilityRange.createMany({
-    data
-  });
-
   const conflictBookings = await prisma.booking.findMany({
     where: {
       placeId,
@@ -73,6 +69,24 @@ export async function POST(request: NextRequest) {
         endDate: { gt: range.startDate }
       }))
     }
+  });
+
+  if (conflictBookings.length > 0 && !body?.confirm) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "availability_conflict",
+        data: {
+          conflictCount: conflictBookings.length,
+          bookingIds: conflictBookings.map((booking) => booking.id)
+        }
+      },
+      { status: 409 }
+    );
+  }
+
+  const created = await prisma.availabilityRange.createMany({
+    data
   });
 
   if (conflictBookings.length > 0) {
