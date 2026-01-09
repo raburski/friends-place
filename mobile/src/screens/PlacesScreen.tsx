@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import MapView, { Marker, Region } from "react-native-maps";
 import { useNavigation } from "@react-navigation/native";
 import { useSession } from "../auth/useSession";
 import { apiGet } from "../api/client";
@@ -11,14 +12,14 @@ type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "PlacesList">;
 export function PlacesScreen() {
   const navigation = useNavigation<PlacesNav>();
   const { session } = useSession();
-  const [places, setPlaces] = useState<Array<{ id: string; name: string }>>([]);
+  const [places, setPlaces] = useState<Array<{ id: string; name: string; lat?: number; lng?: number }>>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
       return;
     }
-    apiGet<{ ok: boolean; data: Array<{ id: string; name: string }> }>(
+    apiGet<{ ok: boolean; data: Array<{ id: string; name: string; lat?: number; lng?: number }> }>(
       "/api/places",
       session.token
     )
@@ -26,13 +27,52 @@ export function PlacesScreen() {
       .catch(() => setError("Nie udało się pobrać miejsc."));
   }, [session]);
 
+  const mapRegion = useMemo<Region | undefined>(() => {
+    const coords = places.filter((place) => typeof place.lat === "number" && typeof place.lng === "number");
+    if (coords.length === 0) {
+      return undefined;
+    }
+    const lats = coords.map((place) => place.lat ?? 0);
+    const lngs = coords.map((place) => place.lng ?? 0);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+
+    return {
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLng + maxLng) / 2,
+      latitudeDelta: Math.max(0.05, maxLat - minLat + 0.05),
+      longitudeDelta: Math.max(0.05, maxLng - minLng + 0.05)
+    };
+  }, [places]);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Miejsca</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.mapStub}>
-        <Text style={styles.mapTitle}>Mapa (wkrótce)</Text>
-        <Text style={styles.mapText}>Apple Maps placeholder</Text>
+        <MapView
+          style={styles.map}
+          region={mapRegion}
+          showsUserLocation
+          showsMyLocationButton
+        >
+          {places.map((place) =>
+            typeof place.lat === "number" && typeof place.lng === "number" ? (
+              <Marker
+                key={place.id}
+                coordinate={{ latitude: place.lat, longitude: place.lng }}
+                title={place.name}
+              />
+            ) : null
+          )}
+        </MapView>
+        {!mapRegion ? (
+          <View style={styles.mapOverlay}>
+            <Text style={styles.mapTitle}>Brak lokalizacji do pokazania</Text>
+          </View>
+        ) : null}
       </View>
       {places.length === 0 ? (
         <Text style={styles.subtitle}>Brak miejsc do wyświetlenia.</Text>
@@ -94,8 +134,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0ebe0",
     borderColor: "#e5e0d5",
     borderWidth: 1,
+    overflow: "hidden"
+  },
+  map: {
+    width: "100%",
+    height: "100%"
+  },
+  mapOverlay: {
+    position: "absolute",
+    inset: 0,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    backgroundColor: "rgba(240, 235, 224, 0.8)"
   },
   mapTitle: {
     fontSize: 14,
