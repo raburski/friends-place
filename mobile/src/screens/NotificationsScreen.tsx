@@ -22,12 +22,34 @@ export function NotificationsScreen() {
             <Text style={styles.cardTitle}>
               {notificationLabels[item.type] ?? item.type}
             </Text>
-            <Text style={styles.cardText}>{formatDate(item.createdAt)}</Text>
+            <Text style={styles.cardText}>
+              {buildSubtitle(item.payload) ?? formatDate(item.createdAt)}
+            </Text>
           </View>
         ))
       )}
     </ScrollView>
   );
+}
+
+function buildSubtitle(payload: Record<string, unknown>) {
+  const placeName = typeof payload.placeName === "string" ? payload.placeName : null;
+  const start = typeof payload.startDate === "string" ? formatDate(payload.startDate) : null;
+  const end = typeof payload.endDate === "string" ? formatDate(payload.endDate) : null;
+
+  if (placeName && start && end) {
+    return `${placeName} · ${start} → ${end}`;
+  }
+
+  if (placeName) {
+    return placeName;
+  }
+
+  if (start && end) {
+    return `${start} → ${end}`;
+  }
+
+  return null;
 }
 
 const styles = StyleSheet.create({
