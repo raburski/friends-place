@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "postinstall": "npm --prefix mobile install",
+    "mobile:ios": "npm --prefix mobile run ios",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio"
   },
