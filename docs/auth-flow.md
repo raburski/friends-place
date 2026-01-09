@@ -11,6 +11,7 @@
 - After OAuth, exchange the web session for an app token:
   - `POST /api/auth/mobile/exchange` returns a bearer token (30 days).
   - Store and send `Authorization: Bearer <token>` on API calls.
+  - Refresh token: `POST /api/auth/mobile/refresh`.
   - Optional logout: `POST /api/auth/mobile/revoke`.
 - `GET /api/auth/mobile` returns the current user and `profileComplete`.
 
