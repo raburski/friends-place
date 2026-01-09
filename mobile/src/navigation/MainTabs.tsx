@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PlacesStack } from "./PlacesStack";
 import { BookingsScreen } from "../screens/BookingsScreen";
-import { ProfileScreen } from "../screens/ProfileScreen";
+import { ProfileStack } from "./ProfileStack";
 import { useNotifications } from "../notifications/NotificationsProvider";
 import { CalendarBlank, House, UserCircle } from "phosphor-react-native";
 
@@ -40,7 +40,7 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileStack}
         options={{
           tabBarLabel: "Profil",
           tabBarIcon: ({ color, size, focused }) => (

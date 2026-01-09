@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/tokens";
 
 const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   if (!authHeader) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });

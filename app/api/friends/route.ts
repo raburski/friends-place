@@ -30,8 +30,8 @@ export async function GET() {
       friendsMap.set(friend.id, {
         friendshipId: friendship.id,
         friendId: friend.id,
-        handle: friend.handle,
-        displayName: friend.displayName,
+        handle: friend.handle ?? undefined,
+        displayName: friend.displayName ?? undefined,
         createdAt: friendship.createdAt
       });
     }

@@ -67,11 +67,13 @@ export function PlacesScreen() {
                 style={styles.placeCard}
                 onPress={() => navigation.navigate("PlaceDetail", { placeId: place.id, name: place.name })}
               >
-                <Text style={styles.placeTitle}>{place.name}</Text>
-                <Text style={styles.placeAddress}>{place.address}</Text>
-                <View style={styles.pill}>
-                  <Text style={styles.pillText}>Kolega</Text>
+                <View style={styles.placeTitleRow}>
+                  <Text style={styles.placeTitle}>{place.name}</Text>
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>Kolega</Text>
+                  </View>
                 </View>
+                <Text style={styles.placeAddress}>{place.address}</Text>
               </Pressable>
             ))
           )}
@@ -104,11 +106,13 @@ export function PlacesScreen() {
                 style={styles.placeCard}
                 onPress={() => navigation.navigate("PlaceDetail", { placeId: place.id, name: place.name })}
               >
-                <Text style={styles.placeTitle}>{place.name}</Text>
-                <Text style={styles.placeAddress}>{place.address}</Text>
-                <View style={styles.pill}>
-                  <Text style={styles.pillText}>Ty</Text>
+                <View style={styles.placeTitleRow}>
+                  <Text style={styles.placeTitle}>{place.name}</Text>
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>Ty</Text>
+                  </View>
                 </View>
+                <Text style={styles.placeAddress}>{place.address}</Text>
               </Pressable>
             ))
           )}
@@ -203,11 +207,18 @@ const styles = StyleSheet.create({
   placeTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: theme.colors.text
+    color: theme.colors.text,
+    flexShrink: 1
   },
   placeAddress: {
     fontSize: 13,
     color: theme.colors.muted
+  },
+  placeTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap"
   },
   pill: {
     alignSelf: "flex-start",

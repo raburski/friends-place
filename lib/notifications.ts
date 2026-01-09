@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { pushPayload, sendExpoPush } from "@/lib/push";
 
-type Payload = Record<string, unknown>;
+type Payload = Prisma.InputJsonObject;
 
 export async function createNotification(
   userId: string,

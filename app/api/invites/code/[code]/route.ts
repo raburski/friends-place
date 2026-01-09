@@ -1,17 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
-  const resolvedParams = await params;
-  if (!resolvedParams?.code) {
+  const { code } = await params;
+  if (!code) {
     return NextResponse.json({ ok: false, error: "missing_code" }, { status: 400 });
   }
 
   const invite = await prisma.inviteLink.findUnique({
-    where: { code: resolvedParams.code },
+    where: { code },
     select: {
       expiresAt: true,
       revokedAt: true,

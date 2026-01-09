@@ -11,17 +11,17 @@ type GuidePayload = {
 };
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ placeId: string }> }
 ) {
-  const resolvedParams = await params;
+  const { placeId } = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
   const guides = await prisma.guideEntry.findMany({
-    where: { placeId: resolvedParams.placeId },
+    where: { placeId },
     orderBy: { categoryKey: "asc" }
   });
 
@@ -32,14 +32,14 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ placeId: string }> }
 ) {
-  const resolvedParams = await params;
+  const { placeId } = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
   const place = await prisma.place.findUnique({
-    where: { id: resolvedParams.placeId }
+    where: { id: placeId }
   });
 
   if (!place) {

@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
 
 export async function POST(
-  request: Request,
-  context: { params: { id?: string } | Promise<{ id?: string }> }
+  request: NextRequest,
+  context: { params: Promise<{ id?: string }> }
 ) {
   const session = await requireSession();
   if (!session) {
