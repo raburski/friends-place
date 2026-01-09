@@ -8,7 +8,8 @@ const links = [
   { href: "/places", label: "Miejsca" },
   { href: "/bookings", label: "Rezerwacje" },
   { href: "/notifications", label: "Powiadomienia" },
-  { href: "/profile", label: "Profil" }
+  { href: "/profile", label: "Profil" },
+  { href: "/settings", label: "Ustawienia" }
 ];
 
 export function WebNav() {
