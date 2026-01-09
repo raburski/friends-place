@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET() {
   const session = await requireSession();
@@ -123,7 +124,11 @@ export async function POST(request: NextRequest) {
     }
   });
 
-  // TODO: notify owner about booking request.
+  await createNotification(place.ownerId, "booking_requested", {
+    bookingId: booking.id,
+    placeId,
+    guestId: session.user.id
+  });
 
   return NextResponse.json({ ok: true, data: booking }, { status: 201 });
 }

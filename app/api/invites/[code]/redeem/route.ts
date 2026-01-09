@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   request: Request,
@@ -59,6 +60,11 @@ export async function POST(
       });
     }
 
+    await createNotification(invite.creatorId, "invite_signup", {
+      inviteId: invite.id,
+      userId: session.user.id
+    });
+
     return NextResponse.json({ ok: true, data: existing });
   }
 
@@ -77,7 +83,10 @@ export async function POST(
     })
   ]);
 
-  // TODO: notify inviter about signup.
+  await createNotification(invite.creatorId, "invite_signup", {
+    inviteId: invite.id,
+    userId: session.user.id
+  });
 
   return NextResponse.json({ ok: true, data: friendship }, { status: 201 });
 }

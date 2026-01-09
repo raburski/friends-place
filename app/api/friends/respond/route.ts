@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(request: NextRequest) {
   const session = await requireSession();
@@ -38,7 +39,10 @@ export async function POST(request: NextRequest) {
       data: { status: "accepted" }
     });
 
-    // TODO: notify requester about acceptance.
+    await createNotification(friendship.requestedById, "friend_accepted", {
+      friendshipId: friendship.id,
+      userId: session.user.id
+    });
 
     return NextResponse.json({ ok: true, data: updated });
   }

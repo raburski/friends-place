@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   request: Request,
@@ -30,7 +31,11 @@ export async function POST(
     data: { status: "declined" }
   });
 
-  // TODO: notify guest about decline.
+  await createNotification(booking.guestId, "booking_declined", {
+    bookingId: booking.id,
+    placeId: booking.placeId,
+    ownerId: session.user.id
+  });
 
   return NextResponse.json({ ok: true, data: updated });
 }

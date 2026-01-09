@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   request: Request,
@@ -33,7 +34,13 @@ export async function POST(
     data: { status: "canceled" }
   });
 
-  // TODO: notify counterpart about cancellation.
+  const recipientId = isOwner ? booking.guestId : booking.place.ownerId;
+
+  await createNotification(recipientId, "booking_canceled", {
+    bookingId: booking.id,
+    placeId: booking.placeId,
+    canceledById: session.user.id
+  });
 
   return NextResponse.json({ ok: true, data: updated });
 }
