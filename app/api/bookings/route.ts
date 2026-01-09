@@ -1,0 +1,152 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/session";
+import { unauthorized, profileIncomplete } from "@/lib/api";
+import { createNotification } from "@/lib/notifications";
+import { isProfileComplete } from "@/lib/profile";
+
+export async function GET(request: NextRequest) {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id }
+  });
+  if (!isProfileComplete(user)) {
+    return profileIncomplete();
+  }
+
+  const userId = session.user.id;
+  const url = new URL(request.url);
+  const includeHistory = url.searchParams.get("history") === "true";
+
+  const [myStays, atMyPlaces] = await Promise.all([
+    prisma.booking.findMany({
+      where: {
+        guestId: userId,
+        ...(includeHistory ? {} : { status: { notIn: ["canceled", "declined", "completed"] } })
+      },
+      orderBy: { startDate: "desc" }
+    }),
+    prisma.booking.findMany({
+      where: {
+        place: { ownerId: userId },
+        ...(includeHistory ? {} : { status: { notIn: ["canceled", "declined", "completed"] } })
+      },
+      orderBy: { startDate: "desc" },
+      include: { place: true }
+    })
+  ]);
+
+  return NextResponse.json({ ok: true, data: { myStays, atMyPlaces } });
+}
+
+export async function POST(request: NextRequest) {
+  const session = await requireSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  const body = await request.json();
+  const placeId = body?.placeId;
+  const startDate = new Date(body?.startDate);
+  const endDate = new Date(body?.endDate);
+
+  if (!placeId || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return NextResponse.json(
+      { ok: false, error: "invalid_request" },
+      { status: 400 }
+    );
+  }
+
+  if (endDate <= startDate) {
+    return NextResponse.json(
+      { ok: false, error: "invalid_dates" },
+      { status: 400 }
+    );
+  }
+
+  const place = await prisma.place.findUnique({
+    where: { id: placeId }
+  });
+
+  if (!place || !place.isActive) {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+
+  if (place.ownerId === session.user.id) {
+    return NextResponse.json(
+      { ok: false, error: "cannot_book_own_place" },
+      { status: 400 }
+    );
+  }
+
+  const availability = await prisma.availabilityRange.findFirst({
+    where: {
+      placeId,
+      startDate: { lte: startDate },
+      endDate: { gte: endDate }
+    }
+  });
+
+  if (!availability) {
+    return NextResponse.json(
+      { ok: false, error: "no_availability" },
+      { status: 400 }
+    );
+  }
+
+  const conflictPlace = await prisma.booking.findFirst({
+    where: {
+      placeId,
+      status: { in: ["requested", "approved"] },
+      startDate: { lt: endDate },
+      endDate: { gt: startDate }
+    }
+  });
+
+  if (conflictPlace) {
+    return NextResponse.json(
+      { ok: false, error: "place_unavailable" },
+      { status: 409 }
+    );
+  }
+
+  const conflictGuest = await prisma.booking.findFirst({
+    where: {
+      guestId: session.user.id,
+      status: { in: ["requested", "approved"] },
+      startDate: { lt: endDate },
+      endDate: { gt: startDate }
+    }
+  });
+
+  if (conflictGuest) {
+    return NextResponse.json(
+      { ok: false, error: "guest_unavailable" },
+      { status: 409 }
+    );
+  }
+
+  const booking = await prisma.booking.create({
+    data: {
+      placeId,
+      guestId: session.user.id,
+      startDate,
+      endDate,
+      status: "requested"
+    }
+  });
+
+  await createNotification(place.ownerId, "booking_requested", {
+    bookingId: booking.id,
+    placeId,
+    placeName: place.name,
+    guestId: session.user.id,
+    startDate: booking.startDate.toISOString(),
+    endDate: booking.endDate.toISOString()
+  });
+
+  return NextResponse.json({ ok: true, data: booking }, { status: 201 });
+}

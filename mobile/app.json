@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Domy Kolegów",
+    "slug": "domy-kolegow",
+    "scheme": "com.raburski.domykolegow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.raburski.domykolegow"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "android": {
+      "package": "com.raburski.domykolegow"
+    }
+  }
+}

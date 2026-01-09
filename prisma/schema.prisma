@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+}
+
+enum InviteLinkType {
+  single
+  multi
+}
+
+enum PlaceType {
+  apartment
+  house
+}
+
+enum BookingStatus {
+  requested
+  approved
+  declined
+  canceled
+  completed
+}
+
+enum GuideCategoryKey {
+  access
+  sleep
+  wash
+  eat_drink
+  operate
+}
+
+enum NotificationType {
+  friend_accepted
+  booking_requested
+  booking_approved
+  booking_declined
+  booking_canceled
+  place_deactivated
+  availability_conflict
+  invite_signup
+}
+
+enum PushPlatform {
+  expo
+}
+
+model User {
+  id          String      @id @default(cuid())
+  handle      String?     @unique
+  handleLower String?     @unique
+  displayName String?
+  name        String?
+  email       String?     @unique
+  emailVerified DateTime?
+  image       String?
+  isAdmin     Boolean     @default(false)
+  locale      String      @default("pl")
+  createdAt   DateTime    @default(now())
+  friendships Friendship[] @relation("Friendships")
+  friendsWith Friendship[] @relation("FriendshipsReverse")
+  invites     InviteLink[]
+  places      Place[]
+  bookings    Booking[]   @relation("GuestBookings")
+  notifications Notification[]
+  pushTokens  PushToken[]
+  appSessions AppSession[]
+  accounts    Account[]
+  sessions    Session[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Friendship {
+  id            String           @id @default(cuid())
+  userId        String
+  friendId      String
+  status        FriendshipStatus
+  requestedById String
+  createdAt     DateTime         @default(now())
+  user          User             @relation("Friendships", fields: [userId], references: [id])
+  friend        User             @relation("FriendshipsReverse", fields: [friendId], references: [id])
+
+  @@unique([userId, friendId])
+  @@index([friendId])
+}
+
+model InviteLink {
+  id           String        @id @default(cuid())
+  creatorId    String
+  type         InviteLinkType
+  code         String        @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  usedByUserId String?
+  createdAt    DateTime      @default(now())
+  creator      User          @relation(fields: [creatorId], references: [id])
+}
+
+model Place {
+  id          String     @id @default(cuid())
+  ownerId     String
+  name        String
+  address     String
+  lat         Float
+  lng         Float
+  timezone    String
+  type        PlaceType?
+  description String?
+  rules       String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  owner       User       @relation(fields: [ownerId], references: [id])
+  availability AvailabilityRange[]
+  bookings    Booking[]
+  guides      GuideEntry[]
+
+  @@index([ownerId])
+}
+
+model AvailabilityRange {
+  id        String   @id @default(cuid())
+  placeId   String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  place     Place    @relation(fields: [placeId], references: [id])
+
+  @@index([placeId])
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  placeId   String
+  guestId   String
+  startDate DateTime
+  endDate   DateTime
+  status    BookingStatus
+  createdAt DateTime      @default(now())
+  place     Place         @relation(fields: [placeId], references: [id])
+  guest     User          @relation("GuestBookings", fields: [guestId], references: [id])
+
+  @@index([placeId])
+  @@index([guestId])
+}
+
+model GuideEntry {
+  id          String           @id @default(cuid())
+  placeId     String
+  categoryKey GuideCategoryKey
+  text        String
+  createdAt   DateTime         @default(now())
+  place       Place            @relation(fields: [placeId], references: [id])
+
+  @@index([placeId])
+  @@unique([placeId, categoryKey])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model PushToken {
+  id        String       @id @default(cuid())
+  userId    String
+  token     String       @unique
+  platform  PushPlatform
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model AppSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
