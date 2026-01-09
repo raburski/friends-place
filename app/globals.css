@@ -53,12 +53,12 @@ body {
   font-family: var(--font-body);
   background: radial-gradient(
       circle at 15% 15%,
-      rgba(44, 122, 123, 0.12),
+      color-mix(in srgb, var(--color-primary) 20%, transparent),
       transparent 50%
     ),
     radial-gradient(
       circle at 85% 20%,
-      rgba(217, 119, 6, 0.1),
+      color-mix(in srgb, var(--color-accent) 18%, transparent),
       transparent 45%
     ),
     var(--color-bg);
@@ -86,7 +86,7 @@ main {
   align-items: center;
   justify-content: space-between;
   padding: 20px 32px;
-  background: rgba(255, 255, 255, 0.8);
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
   border-bottom: 1px solid var(--color-border);
   backdrop-filter: blur(10px);
 }
@@ -138,7 +138,7 @@ main {
 }
 
 .modal-card {
-  background: rgba(255, 255, 255, 0.98);
+  background: color-mix(in srgb, var(--color-surface) 95%, transparent);
   border-radius: 16px;
   padding: 20px;
   width: min(420px, 100%);
@@ -168,7 +168,7 @@ main {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: 16px;
@@ -180,26 +180,16 @@ main {
 }
 
 .muted {
-  color: rgba(27, 27, 27, 0.6);
-}
-
-@media (prefers-color-scheme: dark) {
-  .web-nav {
-    background: rgba(18, 18, 18, 0.9);
-  }
-
-  .card {
-    background: rgba(28, 28, 28, 0.9);
-  }
-
-  .modal-card {
-    background: rgba(28, 28, 28, 0.98);
-  }
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
 }
 
 .hero {
   width: min(960px, 100%);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.65));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-surface) 92%, transparent),
+    color-mix(in srgb, var(--color-surface) 75%, transparent)
+  );
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sheet);
   box-shadow: var(--shadow-soft);
@@ -213,7 +203,11 @@ main {
   position: absolute;
   inset: -100px 40% auto -120px;
   height: 260px;
-  background: radial-gradient(circle, rgba(44, 122, 123, 0.2), transparent 70%);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-primary) 35%, transparent),
+    transparent 70%
+  );
   transform: rotate(-8deg);
 }
 
@@ -246,13 +240,7 @@ h1 {
 .subtitle {
   font-size: clamp(16px, 2vw, 20px);
   max-width: 520px;
-  color: rgba(27, 27, 27, 0.75);
-}
-
-@media (prefers-color-scheme: dark) {
-  .subtitle {
-    color: rgba(245, 245, 245, 0.75);
-  }
+  color: color-mix(in srgb, var(--color-text) 75%, transparent);
 }
 
 .cta-row {
@@ -292,17 +280,7 @@ h1 {
 
 .footer-note {
   font-size: 14px;
-  color: rgba(27, 27, 27, 0.6);
-}
-
-@media (prefers-color-scheme: dark) {
-  .hero {
-    background: linear-gradient(135deg, rgba(28, 28, 28, 0.95), rgba(28, 28, 28, 0.75));
-  }
-
-  .footer-note {
-    color: rgba(245, 245, 245, 0.55);
-  }
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
 }
 
 @media (max-width: 640px) {
