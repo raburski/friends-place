@@ -15,3 +15,4 @@
 - Set Google Maps JS API key (web map) and restrict domains.
 - Decide on Nominatim usage policy + caching strategy (if needed).
 - Set a proper `NOMINATIM_USER_AGENT` (required by Nominatim usage policy).
+- Set `EXPO_PUBLIC_API_BASE_URL` for device testing in Expo.
