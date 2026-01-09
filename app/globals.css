@@ -90,6 +90,13 @@ main {
   font-size: 14px;
 }
 
+.web-nav__button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
 .web-nav__link--active {
   color: var(--color-primary);
 }
