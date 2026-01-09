@@ -55,3 +55,49 @@ export async function apiPost<T>(path: string, token: string, body?: unknown): P
 
   return response.json();
 }
+
+export async function apiPatch<T>(path: string, token: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  if (!response.ok) {
+    let data: unknown = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+    throw new ApiError(`Request failed: ${response.status}`, response.status, data);
+  }
+
+  return response.json();
+}
+
+export async function apiPut<T>(path: string, token: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  if (!response.ok) {
+    let data: unknown = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+    throw new ApiError(`Request failed: ${response.status}`, response.status, data);
+  }
+
+  return response.json();
+}

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
+import { View, Text, StyleSheet, Pressable, Modal, TextInput } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useSession } from "../auth/useSession";
-import { apiGet, apiPost, ApiError } from "../api/client";
+import { apiGet, apiPost, apiPatch, apiPut, ApiError } from "../api/client";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "../utils/date";
 
@@ -16,6 +16,8 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const [endDate, setEndDate] = useState(new Date());
   const [availability, setAvailability] = useState<Array<{ id: string; startDate: string; endDate: string }>>([]);
   const [isOwner, setIsOwner] = useState(false);
+  const [rules, setRules] = useState("");
+  const [guides, setGuides] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<string | null>(null);
   const [ownerMode, setOwnerMode] = useState(false);
   const [newRangeStart, setNewRangeStart] = useState(new Date());
@@ -27,18 +29,28 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
     if (!session) {
       return;
     }
-    apiGet<{
-      ok: boolean;
-      data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
-    }>(
-      `/api/availability/place/${placeId}`,
-      session.token
-    )
-      .then((payload) => {
-        setAvailability(payload.data?.ranges ?? []);
-        setIsOwner(Boolean(payload.data?.isOwner));
+    Promise.all([
+      apiGet<{
+        ok: boolean;
+        data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
+      }>(`/api/availability/place/${placeId}`, session.token),
+      apiGet<{ ok: boolean; data: { rules?: string | null } }>(`/api/places/${placeId}`, session.token),
+      apiGet<{ ok: boolean; data: Array<{ categoryKey: string; text: string }> }>(
+        `/api/guides/${placeId}`,
+        session.token
+      )
+    ])
+      .then(([availabilityPayload, placePayload, guidesPayload]) => {
+        setAvailability(availabilityPayload.data?.ranges ?? []);
+        setIsOwner(Boolean(availabilityPayload.data?.isOwner));
+        setRules(placePayload.data?.rules ?? "");
+        const guideMap: Record<string, string> = {};
+        (guidesPayload.data ?? []).forEach((entry) => {
+          guideMap[entry.categoryKey] = entry.text;
+        });
+        setGuides(guideMap);
       })
-      .catch(() => setStatus("Nie udało się pobrać dostępności."));
+      .catch(() => setStatus("Nie udało się pobrać danych miejsca."));
   }, [session, placeId]);
 
   return (
@@ -176,6 +188,78 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
         ))
       )}
       {status ? <Text style={styles.status}>{status}</Text> : null}
+      <Text style={styles.sectionTitle}>Zasady domu</Text>
+      {isOwner ? (
+        <>
+          <View style={styles.rulesBox}>
+            <TextInput
+              style={styles.rulesInput}
+              placeholder="Dodaj zasady domu..."
+              value={rules}
+              onChangeText={setRules}
+              multiline
+            />
+          </View>
+          <Pressable
+            style={styles.button}
+            onPress={async () => {
+              if (!session) return;
+              try {
+                await apiPatch(`/api/places/${placeId}`, session.token, { rules });
+                setStatus("Zasady zapisane.");
+              } catch {
+                setStatus("Nie udało się zapisać zasad.");
+              }
+            }}
+          >
+            <Text style={styles.buttonText}>Zapisz zasady</Text>
+          </Pressable>
+        </>
+      ) : (
+        <Text style={styles.subtitle}>{rules || "Brak zasad."}</Text>
+      )}
+      <Text style={styles.sectionTitle}>Przewodnik</Text>
+      {GUIDE_LABELS.map((item) => (
+        <View key={item.key} style={styles.guideCard}>
+          <Text style={styles.guideTitle}>{item.label}</Text>
+          {isOwner ? (
+            <TextInput
+              style={styles.rulesInput}
+              placeholder="Dodaj wskazówki..."
+              value={guides[item.key] ?? ""}
+              onChangeText={(value) =>
+                setGuides((current) => ({
+                  ...current,
+                  [item.key]: value
+                }))
+              }
+              multiline
+            />
+          ) : (
+            <Text style={styles.subtitle}>{guides[item.key] ?? "Brak informacji."}</Text>
+          )}
+        </View>
+      ))}
+      {isOwner ? (
+        <Pressable
+          style={styles.button}
+          onPress={async () => {
+            if (!session) return;
+            try {
+              const entries = GUIDE_LABELS.map((item) => ({
+                categoryKey: item.key,
+                text: guides[item.key] ?? ""
+              }));
+              await apiPut(`/api/guides/${placeId}`, session.token, { entries });
+              setStatus("Przewodnik zapisany.");
+            } catch {
+              setStatus("Nie udało się zapisać przewodnika.");
+            }
+          }}
+        >
+          <Text style={styles.buttonText}>Zapisz przewodnik</Text>
+        </Pressable>
+      ) : null}
       <Modal transparent visible={confirmVisible} animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -231,6 +315,14 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   );
 }
 
+const GUIDE_LABELS = [
+  { key: "access", label: "Jak się dostać" },
+  { key: "sleep", label: "Jak się wyspać" },
+  { key: "wash", label: "Jak się umyć" },
+  { key: "eat_drink", label: "Jak się najeść/napić" },
+  { key: "operate", label: "Jak obsługiwać" }
+];
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -281,6 +373,30 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#fff",
     borderRadius: 12
+  },
+  rulesBox: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12
+  },
+  rulesInput: {
+    minHeight: 60,
+    fontSize: 14,
+    color: "#1b1b1b"
+  },
+  guideCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12
+  },
+  guideTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6
   },
   modalBackdrop: {
     flex: 1,

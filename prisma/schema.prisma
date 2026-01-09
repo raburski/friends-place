@@ -194,6 +194,7 @@ model GuideEntry {
   place       Place            @relation(fields: [placeId], references: [id])
 
   @@index([placeId])
+  @@unique([placeId, categoryKey])
 }
 
 model Notification {
