@@ -55,9 +55,12 @@ enum PushPlatform {
 
 model User {
   id          String      @id @default(cuid())
-  handle      String      @unique
-  displayName String
-  email       String      @unique
+  handle      String?     @unique
+  displayName String?
+  name        String?
+  email       String?     @unique
+  emailVerified DateTime?
+  image       String?
   isAdmin     Boolean     @default(false)
   locale      String      @default("pl")
   createdAt   DateTime    @default(now())
@@ -68,6 +71,43 @@ model User {
   bookings    Booking[]   @relation("GuestBookings")
   notifications Notification[]
   pushTokens  PushToken[]
+  accounts    Account[]
+  sessions    Session[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Friendship {

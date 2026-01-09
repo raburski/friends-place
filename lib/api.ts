@@ -10,3 +10,10 @@ export function notImplemented(message: string) {
     { status: 501 }
   );
 }
+
+export function unauthorized() {
+  return NextResponse.json(
+    { ok: false, error: "unauthorized" },
+    { status: 401 }
+  );
+}

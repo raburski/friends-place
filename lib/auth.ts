@@ -1,7 +1,9 @@
 import type { NextAuthOptions } from "next-auth";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import AppleProvider from "next-auth/providers/apple";
 import DiscordProvider from "next-auth/providers/discord";
 import GoogleProvider from "next-auth/providers/google";
+import { prisma } from "@/lib/prisma";
 
 const providers = [];
 
@@ -38,10 +40,18 @@ if (process.env.APPLE_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_PRIVA
 }
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   providers,
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt"
+  },
+  callbacks: {
+    async session({ session, token }) {
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+      }
+      return session;
+    }
   }
-  // TODO: wire Prisma adapter once DB is ready for auth tables.
 };
