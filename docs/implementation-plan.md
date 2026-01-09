@@ -94,7 +94,7 @@ Rules:
 Core endpoints:
 - `POST /api/invites` create invite
 - `GET /api/invites` list invites
-- `POST /api/invites/:code/redeem`
+- `POST /api/invites/code/:code/redeem`
 - `POST /api/friends/request`
 - `POST /api/friends/respond`
 - `GET /api/places` list friends places
@@ -174,4 +174,3 @@ Web:
 - Map view works (Apple Maps on iOS, Google Maps on web).
 - Web app functional (desktop), mobile web shows download CTA.
 - Polish UI default, English optional.
-
