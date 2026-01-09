@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, apiPost } from "../_components/api";
+import { apiFetch, apiPost, ApiError } from "../_components/api";
 
 type Friend = { friendshipId: string; friendId: string; handle?: string; displayName?: string };
 
@@ -9,11 +9,14 @@ type Invite = { id: string; code: string; type: string; revokedAt?: string | nul
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<{ displayName?: string; handle?: string } | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [handle, setHandle] = useState("");
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<Array<{ friendshipId: string; handle?: string; displayName?: string }>>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [handleQuery, setHandleQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [needsProfile, setNeedsProfile] = useState(false);
 
   const refresh = () => {
     Promise.all([
@@ -26,11 +29,20 @@ export default function ProfilePage() {
     ])
       .then(([me, friendsPayload, requestsPayload, invitesPayload]) => {
         setProfile(me.data ?? null);
+        setDisplayName(me.data?.displayName ?? "");
+        setHandle(me.data?.handle ?? "");
+        setNeedsProfile(!(me.data?.displayName && me.data?.handle));
         setFriends(friendsPayload.data ?? []);
         setRequests(requestsPayload.data ?? []);
         setInvites(invitesPayload.data ?? []);
       })
-      .catch(() => setError("Nie udało się pobrać profilu."));
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          setError("Musisz się zalogować.");
+          return;
+        }
+        setError("Nie udało się pobrać profilu.");
+      });
   };
 
   useEffect(() => {
@@ -44,6 +56,39 @@ export default function ProfilePage() {
       <div className="card">
         <strong>{profile?.displayName ?? "Brak nazwy"}</strong>
         <div className="muted">@{profile?.handle ?? "bez_handle"}</div>
+        {needsProfile ? (
+          <div style={{ marginTop: 12 }}>
+            <p className="muted">Uzupełnij profil, aby korzystać z aplikacji.</p>
+            <div style={{ display: "grid", gap: 8, maxWidth: 320 }}>
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder="Imię / nazwa"
+              />
+              <input
+                value={handle}
+                onChange={(event) => setHandle(event.target.value)}
+                placeholder="Handle"
+              />
+              <button
+                onClick={async () => {
+                  try {
+                    await apiFetch("/api/me", {
+                      method: "PATCH",
+                      body: JSON.stringify({ displayName, handle, locale: "pl" })
+                    });
+                    setNeedsProfile(false);
+                    refresh();
+                  } catch {
+                    setError("Nie udało się zapisać profilu.");
+                  }
+                }}
+              >
+                Zapisz profil
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="card">

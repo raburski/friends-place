@@ -1,3 +1,14 @@
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...options,
@@ -10,7 +21,7 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new Error(data?.error ?? "request_failed");
+    throw new ApiError(data?.error ?? "request_failed", response.status, data?.error);
   }
 
   return response.json();
