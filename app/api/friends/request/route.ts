@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
 import { isValidHandle } from "@/shared/validation/handle";
+import { normalizeHandle } from "@/lib/handles";
 
 export async function POST(request: NextRequest) {
   const session = await requireSession();
@@ -22,10 +23,7 @@ export async function POST(request: NextRequest) {
 
   const target = await prisma.user.findFirst({
     where: {
-      handle: {
-        equals: handle,
-        mode: "insensitive"
-      }
+      handleLower: normalizeHandle(handle)
     }
   });
 
