@@ -1,3 +1,5 @@
+import { signOut } from "next-auth/react";
+
 export class ApiError extends Error {
   status: number;
   code?: string;
@@ -21,7 +23,13 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new ApiError(data?.error ?? "request_failed", response.status, data?.error);
+    const errorCode = data?.error;
+    if ((response.status === 401 || errorCode === "unauthorized") && typeof window !== "undefined") {
+      void signOut({ callbackUrl: "/" }).catch(() => {
+        window.location.assign("/api/auth/signout");
+      });
+    }
+    throw new ApiError(errorCode ?? "request_failed", response.status, errorCode);
   }
 
   return response.json();

@@ -73,10 +73,37 @@ if (process.env.APPLE_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_PRIVA
   );
 }
 
+console.info("[auth] providers", {
+  google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+  discord: Boolean(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET),
+  apple: Boolean(
+    process.env.APPLE_ID &&
+      process.env.APPLE_TEAM_ID &&
+      process.env.APPLE_PRIVATE_KEY &&
+      process.env.APPLE_KEY_ID
+  ),
+  total: providers.length
+});
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers,
   secret: process.env.NEXTAUTH_SECRET,
+  debug: true,
+  logger: {
+    error(code, metadata) {
+      console.log("[next-auth][error]", code, metadata);
+    },
+    warn(code) {
+      console.log("[next-auth][warn]", code);
+    },
+    debug(code, metadata) {
+      console.log("[next-auth][debug]", code, metadata);
+    }
+  },
+  pages: {
+    signIn: "/auth/signin"
+  },
   session: {
     strategy: "jwt"
   },
