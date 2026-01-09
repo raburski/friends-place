@@ -6,15 +6,20 @@ import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   request: Request,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
+  const resolvedParams = await params;
+  if (!resolvedParams?.code) {
+    return NextResponse.json({ ok: false, error: "missing_code" }, { status: 400 });
+  }
+
   const invite = await prisma.inviteLink.findUnique({
-    where: { code: params.code }
+    where: { code: resolvedParams.code }
   });
 
   if (!invite || invite.revokedAt) {

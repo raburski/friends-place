@@ -23,16 +23,21 @@ export async function GET() {
     orderBy: { createdAt: "desc" }
   });
 
-  const friends = friendships.map((friendship) => {
+  const friendsMap = new Map<string, { friendshipId: string; friendId: string; handle?: string; displayName?: string; createdAt: Date }>();
+  friendships.forEach((friendship) => {
     const friend = friendship.userId === userId ? friendship.friend : friendship.user;
-    return {
-      friendshipId: friendship.id,
-      friendId: friend.id,
-      handle: friend.handle,
-      displayName: friend.displayName,
-      createdAt: friendship.createdAt
-    };
+    if (!friendsMap.has(friend.id)) {
+      friendsMap.set(friend.id, {
+        friendshipId: friendship.id,
+        friendId: friend.id,
+        handle: friend.handle,
+        displayName: friend.displayName,
+        createdAt: friendship.createdAt
+      });
+    }
   });
+
+  const friends = Array.from(friendsMap.values());
 
   return NextResponse.json({ ok: true, data: friends });
 }

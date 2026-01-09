@@ -1,6 +1,6 @@
 export default function Home() {
   return (
-    <main>
+    <main className="landing-main">
       <section className="hero">
         <div className="hero-content">
           <span className="badge">Domy Kolegów</span>

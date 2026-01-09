@@ -23,13 +23,27 @@ export function RootNavigator() {
       });
   }, [session]);
 
+  useEffect(() => {
+    if (!session || profileComplete) {
+      return;
+    }
+    const interval = setInterval(() => {
+      fetchMobileProfile(session.token)
+        .then((payload) => {
+          setProfileComplete(Boolean(payload?.data?.profileComplete));
+        })
+        .catch(() => null);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [session, profileComplete]);
+
   return (
     <NavigationContainer>
       {session ? (
         profileComplete ? (
           <MainTabs />
         ) : (
-          <AuthStack isProfileComplete={profileComplete} />
+          <AuthStack isProfileComplete={profileComplete} forceProfileSetup />
         )
       ) : (
         <AuthStack isProfileComplete={false} />

@@ -7,17 +7,20 @@
     "build": "next build",
     "start": "next start",
     "postinstall": "npm --prefix mobile install",
-    "mobile:ios": "npm --prefix mobile run ios",
+    "mobile:bundler": "npm --prefix mobile run start",
+    "mobile:ios": "npm --prefix mobile run ios:dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
+    "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^6.3.1",
     "next": "16.1.1",
     "next-auth": "^4.24.13",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-hot-toast": "^2.4.1",
     "tz-lookup": "^6.1.25"
   },
   "devDependencies": {

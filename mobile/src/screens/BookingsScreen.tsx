@@ -142,15 +142,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7f4ee"
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "600",
-    marginBottom: 8
+    fontFamily: "Fraunces_600SemiBold",
+    marginBottom: 20
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     alignSelf: "flex-start"
   },
   error: {

@@ -5,15 +5,16 @@ import { unauthorized } from "@/lib/api";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
   const place = await prisma.place.findUnique({
-    where: { id: params.id }
+    where: { id: resolvedParams.id }
   });
 
   if (!place) {
@@ -41,15 +42,16 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
   const place = await prisma.place.findUnique({
-    where: { id: params.id }
+    where: { id: resolvedParams.id }
   });
 
   if (!place) {

@@ -40,7 +40,7 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <h1 className="section-title">Powiadomienia</h1>
+      <h1 className="page-title">Powiadomienia</h1>
       {error ? <p className="muted">{error}</p> : null}
       {unreadIds.length > 0 ? (
         <button

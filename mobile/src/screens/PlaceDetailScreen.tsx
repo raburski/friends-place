@@ -58,41 +58,45 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{name}</Text>
-      <Text style={styles.subtitle}>Złóż prośbę o pobyt</Text>
-      <View style={styles.pickerRow}>
-        <Text style={styles.label}>Przyjazd</Text>
-        <DateTimePicker value={startDate} mode="date" onChange={(_, date) => date && setStartDate(date)} />
-      </View>
-      <View style={styles.pickerRow}>
-        <Text style={styles.label}>Wyjazd</Text>
-        <DateTimePicker value={endDate} mode="date" onChange={(_, date) => date && setEndDate(date)} />
-      </View>
-      <Pressable
-        style={styles.button}
-        onPress={async () => {
-          if (!session) {
-            setStatus("Brak sesji.");
-            return;
-          }
-          try {
-            if (!findMatchingRange(startDate, endDate, availability)) {
-              setAvailabilityHint("Wybrany termin nie mieści się w dostępności.");
-              return;
-            }
-            await apiPost("/api/bookings", session.token, {
-              placeId,
-              startDate: startDate.toISOString(),
-              endDate: endDate.toISOString()
-            });
-            setStatus("Prośba wysłana.");
-          } catch {
-            setStatus("Nie udało się wysłać prośby.");
-          }
-        }}
-      >
-        <Text style={styles.buttonText}>Wyślij prośbę</Text>
-      </Pressable>
-      {availabilityHint ? <Text style={styles.warning}>{availabilityHint}</Text> : null}
+      {isOwner ? null : (
+        <>
+          <Text style={styles.subtitle}>Złóż prośbę o pobyt</Text>
+          <View style={styles.pickerRow}>
+            <Text style={styles.label}>Przyjazd</Text>
+            <DateTimePicker value={startDate} mode="date" onChange={(_, date) => date && setStartDate(date)} />
+          </View>
+          <View style={styles.pickerRow}>
+            <Text style={styles.label}>Wyjazd</Text>
+            <DateTimePicker value={endDate} mode="date" onChange={(_, date) => date && setEndDate(date)} />
+          </View>
+          <Pressable
+            style={styles.button}
+            onPress={async () => {
+              if (!session) {
+                setStatus("Brak sesji.");
+                return;
+              }
+              try {
+                if (!findMatchingRange(startDate, endDate, availability)) {
+                  setAvailabilityHint("Wybrany termin nie mieści się w dostępności.");
+                  return;
+                }
+                await apiPost("/api/bookings", session.token, {
+                  placeId,
+                  startDate: startDate.toISOString(),
+                  endDate: endDate.toISOString()
+                });
+                setStatus("Prośba wysłana.");
+              } catch {
+                setStatus("Nie udało się wysłać prośby.");
+              }
+            }}
+          >
+            <Text style={styles.buttonText}>Wyślij prośbę</Text>
+          </Pressable>
+          {availabilityHint ? <Text style={styles.warning}>{availabilityHint}</Text> : null}
+        </>
+      )}
       {isOwner ? (
         <>
           <Pressable
@@ -351,6 +355,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "600",
+    fontFamily: "Fraunces_600SemiBold",
     marginBottom: 8
   },
   subtitle: {

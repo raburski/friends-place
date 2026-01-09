@@ -9,12 +9,24 @@ export type AuthStackParamList = {
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
-export function AuthStack({ isProfileComplete }: { isProfileComplete: boolean }) {
+export function AuthStack({
+  isProfileComplete,
+  forceProfileSetup
+}: {
+  isProfileComplete: boolean;
+  forceProfileSetup?: boolean;
+}) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Auth" component={AuthScreen} />
-      {!isProfileComplete && (
+      {forceProfileSetup ? (
         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+      ) : (
+        <>
+          <Stack.Screen name="Auth" component={AuthScreen} />
+          {!isProfileComplete && (
+            <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+          )}
+        </>
       )}
     </Stack.Navigator>
   );

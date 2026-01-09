@@ -37,75 +37,97 @@ export default function BookingsPage() {
       .catch(() => setError("Nie udało się pobrać rezerwacji."));
   }, []);
 
+  const allBookings = [
+    ...data.myStays.map((booking) => ({ ...booking, source: "my" as const })),
+    ...data.atMyPlaces.map((booking) => ({ ...booking, source: "host" as const })),
+    ...history.map((booking) => ({ ...booking, source: "history" as const }))
+  ];
+
+  const columns = [
+    {
+      key: "requested",
+      title: "Oczekujące",
+      items: allBookings.filter((booking) => booking.status === "requested")
+    },
+    {
+      key: "approved",
+      title: "Zatwierdzone",
+      items: allBookings.filter((booking) => booking.status === "approved")
+    },
+    {
+      key: "history",
+      title: "Historia",
+      items: allBookings.filter((booking) =>
+        ["canceled", "declined", "completed"].includes(booking.status)
+      )
+    }
+  ];
+
   return (
     <div>
-      <h1 className="section-title">Rezerwacje</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+        <h1 className="page-title">Rezerwacje</h1>
+        <button className="secondary-button" type="button">
+          Nowa prośba
+        </button>
+      </div>
       {error ? <p className="muted">{error}</p> : null}
-      <div className="card">
-        <h2 className="section-title">Moje pobyty</h2>
-        {data.myStays.length === 0 ? (
-          <p className="muted">Brak pobytów.</p>
-        ) : (
-          data.myStays.map((booking) => (
-            <div key={booking.id} className="muted">
-              {booking.startDate} → {booking.endDate} · {booking.status}
+      <div className="kanban">
+        {columns.map((column) => (
+          <div key={column.key} className="kanban-column">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>{column.title}</strong>
+              <span className="pill">{column.items.length}</span>
             </div>
-          ))
-        )}
-      </div>
-      <div className="card">
-        <h2 className="section-title">U mnie</h2>
-        {data.atMyPlaces.length === 0 ? (
-          <p className="muted">Brak rezerwacji.</p>
-        ) : (
-          data.atMyPlaces.map((booking) => (
-            <div key={booking.id} className="muted">
-              {booking.startDate} → {booking.endDate} · {booking.status}
-              {booking.status === "requested" ? (
-                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                  <button
-                    onClick={async () => {
-                      await apiFetch(`/api/bookings/${booking.id}/approve`, { method: "POST" });
-                      setData((current) => ({
-                        ...current,
-                        atMyPlaces: current.atMyPlaces.map((item) =>
-                          item.id === booking.id ? { ...item, status: "approved" } : item
-                        )
-                      }));
-                    }}
-                  >
-                    Akceptuj
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await apiFetch(`/api/bookings/${booking.id}/decline`, { method: "POST" });
-                      setData((current) => ({
-                        ...current,
-                        atMyPlaces: current.atMyPlaces.map((item) =>
-                          item.id === booking.id ? { ...item, status: "declined" } : item
-                        )
-                      }));
-                    }}
-                  >
-                    Odrzuć
-                  </button>
+            {column.items.length === 0 ? (
+              <p className="muted">Brak wpisów.</p>
+            ) : (
+              column.items.map((booking) => (
+                <div key={booking.id} className="kanban-card">
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <strong>{booking.startDate} → {booking.endDate}</strong>
+                    <span className="pill">
+                      {booking.source === "host" ? "U mnie" : "Mój pobyt"}
+                    </span>
+                  </div>
+                  <div className="muted">Miejsce: {booking.placeId}</div>
+                  <div className="muted">Status: {booking.status}</div>
+                  {booking.source === "host" && booking.status === "requested" ? (
+                    <div className="action-bar">
+                      <button
+                        onClick={async () => {
+                          await apiFetch(`/api/bookings/${booking.id}/approve`, { method: "POST" });
+                          setData((current) => ({
+                            ...current,
+                            atMyPlaces: current.atMyPlaces.map((item) =>
+                              item.id === booking.id ? { ...item, status: "approved" } : item
+                            )
+                          }));
+                        }}
+                      >
+                        Akceptuj
+                      </button>
+                      <button
+                        className="secondary-button"
+                        onClick={async () => {
+                          await apiFetch(`/api/bookings/${booking.id}/decline`, { method: "POST" });
+                          setData((current) => ({
+                            ...current,
+                            atMyPlaces: current.atMyPlaces.map((item) =>
+                              item.id === booking.id ? { ...item, status: "declined" } : item
+                            )
+                          }));
+                        }}
+                      >
+                        Odrzuć
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
-          ))
-        )}
-      </div>
-      <div className="card">
-        <h2 className="section-title">Poprzednie</h2>
-        {history.length === 0 ? (
-          <p className="muted">Brak historii.</p>
-        ) : (
-          history.map((booking) => (
-            <div key={booking.id} className="muted">
-              {booking.startDate} → {booking.endDate} · {booking.status}
-            </div>
-          ))
-        )}
+              ))
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

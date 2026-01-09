@@ -26,6 +26,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pl" className={`${headingFont.variable} ${bodyFont.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var mode = localStorage.getItem('theme_mode');
+                  if (!mode || mode === 'auto') {
+                    document.documentElement.removeAttribute('data-theme');
+                    return;
+                  }
+                  document.documentElement.setAttribute('data-theme', mode);
+                } catch (e) {}
+              })();
+            `
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

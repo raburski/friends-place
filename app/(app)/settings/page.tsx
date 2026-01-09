@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { signOut } from "next-auth/react";
 
 type ThemeMode = "auto" | "light" | "dark";
 
 export default function SettingsPage() {
   const [mode, setMode] = useState<ThemeMode>("auto");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("theme_mode") as ThemeMode | null;
@@ -25,7 +27,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="section-title">Ustawienia</h1>
+      <h1 className="page-title">Ustawienia</h1>
       <div className="card">
         <h2 className="section-title">Motyw</h2>
         <div className="theme-toggle">
@@ -40,6 +42,34 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+      <div className="card">
+        <h2 className="section-title">Konto</h2>
+        <p className="muted">Zakończ bieżącą sesję na tym urządzeniu.</p>
+        <button type="button" className="secondary-button" onClick={() => setConfirmOpen(true)}>
+          Wyloguj
+        </button>
+      </div>
+
+      {confirmOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h2 className="section-title">Wylogować?</h2>
+            <p className="muted">Twoja sesja zostanie zakończona na tym urządzeniu.</p>
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setConfirmOpen(false)}
+              >
+                Anuluj
+              </button>
+              <button type="button" onClick={() => signOut({ callbackUrl: "/" })}>
+                Wyloguj
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,8 +1,19 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { loadSession, saveSession, clearSession, MobileSession } from "./session";
 import { exchangeSession, refreshSession, revokeSession } from "./api";
 
-export function useSession() {
+type SessionContextValue = {
+  session: MobileSession | null;
+  loading: boolean;
+  setSessionData: (next: MobileSession) => Promise<void>;
+  exchange: () => Promise<MobileSession>;
+  refresh: () => Promise<MobileSession | null>;
+  revoke: () => Promise<void>;
+};
+
+const SessionContext = createContext<SessionContextValue | undefined>(undefined);
+
+export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<MobileSession | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,12 +52,25 @@ export function useSession() {
     setSession(null);
   };
 
-  return {
-    session,
-    loading,
-    setSessionData,
-    exchange,
-    refresh,
-    revoke
-  };
+  const value = useMemo(
+    () => ({
+      session,
+      loading,
+      setSessionData,
+      exchange,
+      refresh,
+      revoke
+    }),
+    [session, loading]
+  );
+
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+}
+
+export function useSession() {
+  const context = useContext(SessionContext);
+  if (!context) {
+    throw new Error("useSession must be used within SessionProvider");
+  }
+  return context;
 }

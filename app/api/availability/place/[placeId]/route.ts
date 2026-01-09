@@ -5,15 +5,20 @@ import { unauthorized } from "@/lib/api";
 
 export async function GET(
   request: Request,
-  { params }: { params: { placeId: string } }
+  { params }: { params: Promise<{ placeId: string }> }
 ) {
+  const resolvedParams = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
+  if (!resolvedParams?.placeId) {
+    return NextResponse.json({ ok: false, error: "missing_place_id" }, { status: 400 });
+  }
+
   const place = await prisma.place.findUnique({
-    where: { id: params.placeId }
+    where: { id: resolvedParams.placeId }
   });
 
   if (!place) {
@@ -21,7 +26,7 @@ export async function GET(
   }
 
   const ranges = await prisma.availabilityRange.findMany({
-    where: { placeId: params.placeId },
+    where: { placeId: resolvedParams.placeId },
     orderBy: { startDate: "asc" }
   });
 

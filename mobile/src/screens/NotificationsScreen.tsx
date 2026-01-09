@@ -61,7 +61,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: "600"
+    fontWeight: "600",
+    fontFamily: "Fraunces_600SemiBold"
   },
   subtitle: {
     color: "#4b4b4b"

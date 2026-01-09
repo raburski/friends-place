@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { apiFetch } from "../../_components/api";
+import toast from "react-hot-toast";
 
 const GUIDE_LABELS = [
   { key: "access", label: "Jak się dostać" },
@@ -22,8 +24,9 @@ type Availability = { id: string; startDate: string; endDate: string };
 
 type GuideEntry = { categoryKey: string; text: string };
 
-export default function PlaceDetailPage({ params }: { params: { id: string } }) {
-  const placeId = params.id;
+export default function PlaceDetailPage() {
+  const params = useParams<{ id?: string }>();
+  const placeId = typeof params?.id === "string" ? params.id : "";
   const [place, setPlace] = useState<Place | null>(null);
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [isOwner, setIsOwner] = useState(false);
@@ -31,9 +34,11 @@ export default function PlaceDetailPage({ params }: { params: { id: string } }) 
   const [rules, setRules] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!placeId) {
+      return;
+    }
     Promise.all([
       apiFetch<{ ok: boolean; data: Place }>(`/api/places/${placeId}`),
       apiFetch<{ ok: boolean; data: { ranges: Availability[]; isOwner: boolean } }>(
@@ -52,45 +57,45 @@ export default function PlaceDetailPage({ params }: { params: { id: string } }) 
         });
         setGuides(guideMap);
       })
-      .catch(() => setMessage("Nie udało się pobrać danych miejsca."));
+      .catch(() => toast.error("Nie udało się pobrać danych miejsca."));
   }, [placeId]);
 
   return (
     <div>
-      <h1 className="section-title">{place?.name ?? "Miejsce"}</h1>
+      <h1 className="page-title">{place?.name ?? "Miejsce"}</h1>
       {place?.address ? <p className="muted">{place.address}</p> : null}
-      {message ? <p className="muted">{message}</p> : null}
-
-      <div className="card">
-        <h2 className="section-title">Prośba o pobyt</h2>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-          />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
-          />
-          <button
-            onClick={async () => {
-              try {
-                await apiFetch("/api/bookings", {
-                  method: "POST",
-                  body: JSON.stringify({ placeId, startDate, endDate })
-                });
-                setMessage("Prośba wysłana.");
-              } catch {
-                setMessage("Nie udało się wysłać prośby.");
-              }
-            }}
-          >
-            Wyślij
-          </button>
+      {isOwner ? null : (
+        <div className="card">
+          <h2 className="section-title">Prośba o pobyt</h2>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+            />
+            <button
+              onClick={async () => {
+                try {
+                  await apiFetch("/api/bookings", {
+                    method: "POST",
+                    body: JSON.stringify({ placeId, startDate, endDate })
+                  });
+                  toast.success("Prośba wysłana.");
+                } catch {
+                  toast.error("Nie udało się wysłać prośby.");
+                }
+              }}
+            >
+              Wyślij
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {isOwner ? (
         <div className="card">
@@ -116,14 +121,14 @@ export default function PlaceDetailPage({ params }: { params: { id: string } }) 
                       ranges: [{ startDate, endDate }]
                     })
                   });
-                  setMessage("Dostępność dodana.");
+                  toast.success("Dostępność dodana.");
                   const refreshed = await apiFetch<{
                     ok: boolean;
                     data: { ranges: Availability[]; isOwner: boolean };
                   }>(`/api/availability/place/${placeId}`);
                   setAvailability(refreshed.data?.ranges ?? []);
                 } catch {
-                  setMessage("Nie udało się dodać dostępności.");
+                  toast.error("Nie udało się dodać dostępności.");
                 }
               }}
             >
@@ -158,9 +163,9 @@ export default function PlaceDetailPage({ params }: { params: { id: string } }) 
                     method: "PATCH",
                     body: JSON.stringify({ rules })
                   });
-                  setMessage("Zasady zapisane.");
+                  toast.success("Zasady zapisane.");
                 } catch {
-                  setMessage("Nie udało się zapisać zasad.");
+                  toast.error("Nie udało się zapisać zasad.");
                 }
               }}
             >
@@ -205,9 +210,9 @@ export default function PlaceDetailPage({ params }: { params: { id: string } }) 
                   method: "PUT",
                   body: JSON.stringify({ entries })
                 });
-                setMessage("Przewodnik zapisany.");
+                toast.success("Przewodnik zapisany.");
               } catch {
-                setMessage("Nie udało się zapisać przewodnika.");
+                toast.error("Nie udało się zapisać przewodnika.");
               }
             }}
           >

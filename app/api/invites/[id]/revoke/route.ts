@@ -5,15 +5,24 @@ import { unauthorized } from "@/lib/api";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id?: string } | Promise<{ id?: string }> }
 ) {
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
+  const params = await context.params;
+  const inviteId = params?.id;
+  if (!inviteId) {
+    return NextResponse.json(
+      { ok: false, error: "missing_id" },
+      { status: 400 }
+    );
+  }
+
   const invite = await prisma.inviteLink.findUnique({
-    where: { id: params.id }
+    where: { id: inviteId }
   });
 
   if (!invite) {

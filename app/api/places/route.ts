@@ -41,7 +41,17 @@ export async function GET() {
       ownerId: { in: [userId, ...Array.from(friendIds)] },
       isActive: true
     },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          displayName: true,
+          name: true,
+          handle: true
+        }
+      }
+    }
   });
 
   return NextResponse.json({ ok: true, data: places });

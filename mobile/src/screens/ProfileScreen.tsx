@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, TextInput } from "react-native";
+import { View, Text, StyleSheet, Pressable, Share, Modal } from "react-native";
 import { useSession } from "../auth/useSession";
 import { apiGet, apiPost } from "../api/client";
 
@@ -16,8 +16,9 @@ export function ProfileScreen() {
   const [invites, setInvites] = useState<
     Array<{ id: string; code: string; type: string; revokedAt?: string | null }>
   >([]);
-  const [handleQuery, setHandleQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [revokeInviteId, setRevokeInviteId] = useState<string | null>(null);
+  const [removeFriendId, setRemoveFriendId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -121,15 +122,7 @@ export function ProfileScreen() {
             <Text style={styles.cardText}>@{friend.handle ?? "bez_handle"}</Text>
             <Pressable
               style={[styles.smallButton, styles.secondaryButton]}
-              onPress={async () => {
-                if (!session) return;
-                await apiPost("/api/friends/unfriend", session.token, {
-                  friendId: friend.friendId
-                });
-                setFriends((current) =>
-                  current.filter((item) => item.friendshipId !== friend.friendshipId)
-                );
-              }}
+              onPress={() => setRemoveFriendId(friend.friendId)}
             >
               <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Usuń</Text>
             </Pressable>
@@ -137,80 +130,108 @@ export function ProfileScreen() {
         ))
       )}
       <Text style={styles.sectionTitle}>Dodaj znajomego</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Handle (np. kasia_krk)"
-        value={handleQuery}
-        onChangeText={setHandleQuery}
-        autoCapitalize="none"
-      />
-      <Pressable
-        style={styles.button}
-        onPress={async () => {
-          if (!session) return;
-          try {
-            await apiPost("/api/friends/request", session.token, {
-              handle: handleQuery
-            });
-            setHandleQuery("");
-          } catch {
-            setError("Nie udało się wysłać zaproszenia.");
-          }
-        }}
-      >
-        <Text style={styles.buttonText}>Wyślij zaproszenie</Text>
-      </Pressable>
-      <Text style={styles.sectionTitle}>Twoje linki zaproszeń</Text>
+      <Text style={styles.subtle}>Udostępnij swój link zaproszenia.</Text>
+      <Text style={styles.sectionTitle}>Twój link zaproszenia</Text>
       {invites.length === 0 ? (
         <Text style={styles.subtle}>Brak linków.</Text>
       ) : (
-        invites.map((invite) => (
-          <View key={invite.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{invite.type === "single" ? "Jednorazowy" : "Wielorazowy"}</Text>
-            <Text style={styles.cardText}>Kod: {invite.code}</Text>
-            <Text style={styles.cardText}>
-              Status: {invite.revokedAt ? "Wycofany" : "Aktywny"}
-            </Text>
-            {!invite.revokedAt ? (
+        invites
+          .filter((invite) => !invite.revokedAt)
+          .map((invite) => (
+            <View key={invite.id} style={styles.inviteRow}>
+              <View style={styles.inviteMeta}>
+                <Text style={styles.cardTitle}>
+                  {invite.type === "single" ? "Jednorazowy" : "Wielorazowy"}
+                </Text>
+                <Text style={styles.cardText}>Kod: {invite.code}</Text>
+              </View>
+              <View style={styles.inviteActions}>
+                <Pressable
+                  style={styles.smallButton}
+                  onPress={async () => {
+                    await Share.share({
+                      message: `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000"}/auth/invite/${invite.code}`
+                    });
+                  }}
+                >
+                  <Text style={styles.smallButtonText}>Udostępnij</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.smallButton, styles.secondaryButton]}
+                  onPress={() => setRevokeInviteId(invite.id)}
+                >
+                  <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Wycofaj</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))
+      )}
+      <Text style={styles.subtle}>Link jest tworzony automatycznie.</Text>
+      <Pressable style={styles.button} onPress={revoke}>
+        <Text style={styles.buttonText}>Wyloguj</Text>
+      </Pressable>
+      <Modal transparent visible={Boolean(revokeInviteId)} animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.cardTitle}>Wycofać link?</Text>
+            <Text style={styles.subtle}>Link przestanie działać natychmiast.</Text>
+            <View style={styles.buttonRow}>
               <Pressable
                 style={[styles.smallButton, styles.secondaryButton]}
+                onPress={() => setRevokeInviteId(null)}
+              >
+                <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Anuluj</Text>
+              </Pressable>
+              <Pressable
+                style={styles.smallButton}
                 onPress={async () => {
-                  if (!session) return;
-                  await apiPost(`/api/invites/${invite.id}/revoke`, session.token);
+                  if (!session || !revokeInviteId) return;
+                  await apiPost(`/api/invites/${revokeInviteId}/revoke`, session.token);
+                  setRevokeInviteId(null);
                   setInvites((current) =>
                     current.map((item) =>
-                      item.id === invite.id ? { ...item, revokedAt: new Date().toISOString() } : item
+                      item.id === revokeInviteId ? { ...item, revokedAt: new Date().toISOString() } : item
                     )
                   );
                 }}
               >
-                <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Wycofaj</Text>
+                <Text style={styles.smallButtonText}>Wycofaj</Text>
               </Pressable>
-            ) : null}
+            </View>
           </View>
-        ))
-      )}
-      <Pressable
-        style={styles.button}
-        onPress={async () => {
-          if (!session) return;
-          try {
-            const payload = await apiPost<{ ok: boolean; data: { id: string; code: string; type: string } }>(
-              "/api/invites",
-              session.token,
-              { type: "multi" }
-            );
-            setInvites((current) => [payload.data, ...current]);
-          } catch {
-            setError("Nie udało się utworzyć linku.");
-          }
-        }}
-      >
-        <Text style={styles.buttonText}>Utwórz link zaproszenia</Text>
-      </Pressable>
-      <Pressable style={styles.button} onPress={revoke}>
-        <Text style={styles.buttonText}>Wyloguj</Text>
-      </Pressable>
+        </View>
+      </Modal>
+      <Modal transparent visible={Boolean(removeFriendId)} animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.cardTitle}>Usunąć znajomego?</Text>
+            <Text style={styles.subtle}>Stracicie dostęp do swoich miejsc.</Text>
+            <View style={styles.buttonRow}>
+              <Pressable
+                style={[styles.smallButton, styles.secondaryButton]}
+                onPress={() => setRemoveFriendId(null)}
+              >
+                <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Anuluj</Text>
+              </Pressable>
+              <Pressable
+                style={styles.smallButton}
+                onPress={async () => {
+                  if (!session || !removeFriendId) return;
+                  await apiPost("/api/friends/unfriend", session.token, {
+                    friendId: removeFriendId
+                  });
+                  setFriends((current) =>
+                    current.filter((item) => item.friendId !== removeFriendId)
+                  );
+                  setRemoveFriendId(null);
+                }}
+              >
+                <Text style={styles.smallButtonText}>Usuń</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -224,19 +245,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7f4ee"
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "600",
-    marginBottom: 16
+    fontFamily: "Fraunces_600SemiBold",
+    marginBottom: 24
   },
   subtitle: {
     fontSize: 16,
     marginBottom: 4
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     marginTop: 16,
-    marginBottom: 8
+    marginBottom: 12
   },
   subtle: {
     fontSize: 14,
@@ -281,14 +303,38 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#7c5a00"
   },
-  input: {
+  inviteRow: {
     width: "100%",
     maxWidth: 360,
-    backgroundColor: "#fff",
+    padding: 12,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
     marginBottom: 12
+  },
+  inviteMeta: {
+    flex: 1
+  },
+  inviteActions: {
+    flexDirection: "row",
+    gap: 8
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 320,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16
   },
   button: {
     backgroundColor: "#2c7a7b",

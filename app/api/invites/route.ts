@@ -20,6 +20,27 @@ export async function GET() {
     return profileIncomplete();
   }
 
+  const now = new Date();
+  const existingActive = await prisma.inviteLink.findFirst({
+    where: {
+      creatorId: session.user.id,
+      type: "multi",
+      revokedAt: null,
+      expiresAt: { gt: now }
+    }
+  });
+
+  if (!existingActive) {
+    await prisma.inviteLink.create({
+      data: {
+        creatorId: session.user.id,
+        type: "multi",
+        code: randomCode(),
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365)
+      }
+    });
+  }
+
   const invites = await prisma.inviteLink.findMany({
     where: { creatorId: session.user.id },
     orderBy: { createdAt: "desc" }
