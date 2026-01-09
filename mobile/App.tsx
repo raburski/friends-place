@@ -6,6 +6,8 @@ import { useFonts as useFrauncesFonts, Fraunces_600SemiBold } from "@expo-google
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { SessionProvider } from "./src/auth/useSession";
 import { NotificationsProvider } from "./src/notifications/NotificationsProvider";
+import { ToastProvider } from "./src/ui/ToastProvider";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function App() {
   const [soraLoaded] = useSoraFonts({
@@ -41,11 +43,15 @@ export default function App() {
   }
 
   return (
-    <SessionProvider>
-      <NotificationsProvider>
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </NotificationsProvider>
-    </SessionProvider>
+    <SafeAreaProvider>
+      <SessionProvider>
+        <NotificationsProvider>
+          <ToastProvider>
+            <RootNavigator />
+            <StatusBar style="auto" />
+          </ToastProvider>
+        </NotificationsProvider>
+      </SessionProvider>
+    </SafeAreaProvider>
   );
 }

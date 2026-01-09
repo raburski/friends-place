@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Modal, TextInput, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useSession } from "../auth/useSession";
@@ -9,19 +8,20 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "../utils/date";
 import { AvailabilityRange, findMatchingRange } from "../utils/availability";
 import { theme } from "../theme";
+import { useToast } from "../ui/ToastProvider";
 
 export type PlaceDetailProps = NativeStackScreenProps<PlacesStackParamList, "PlaceDetail">;
 
 export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const { session } = useSession();
   const { placeId, name } = route.params;
+  const toast = useToast();
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [availability, setAvailability] = useState<AvailabilityRange[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [rules, setRules] = useState("");
   const [guides, setGuides] = useState<Record<string, string>>({});
-  const [status, setStatus] = useState<string | null>(null);
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
   const [ownerMode, setOwnerMode] = useState(false);
   const [newRangeStart, setNewRangeStart] = useState(new Date());
@@ -54,11 +54,11 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
         });
         setGuides(guideMap);
       })
-      .catch(() => setStatus("Nie udało się pobrać danych miejsca."));
+      .catch(() => toast("Nie udało się pobrać danych miejsca.", { kind: "error" }));
   }, [session, placeId]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>{name}</Text>
@@ -78,7 +78,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
               style={styles.button}
               onPress={async () => {
                 if (!session) {
-                  setStatus("Brak sesji.");
+                  toast("Brak sesji.", { kind: "error" });
                   return;
                 }
                 try {
@@ -91,9 +91,9 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                     startDate: startDate.toISOString(),
                     endDate: endDate.toISOString()
                   });
-                  setStatus("Prośba wysłana.");
+                  toast("Prośba wysłana.", { kind: "success" });
                 } catch {
-                  setStatus("Nie udało się wysłać prośby.");
+                  toast("Nie udało się wysłać prośby.", { kind: "error" });
                 }
               }}
             >
@@ -135,7 +135,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                   style={styles.button}
                   onPress={async () => {
                     if (!session) {
-                      setStatus("Brak sesji.");
+                      toast("Brak sesji.", { kind: "error" });
                       return;
                     }
                     try {
@@ -149,7 +149,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                         ],
                         confirm: needsConfirm
                       });
-                      setStatus("Dostępność dodana.");
+                      toast("Dostępność dodana.", { kind: "success" });
                       setNeedsConfirm(false);
                       setConfirmVisible(false);
                       const payload = await apiGet<{
@@ -161,10 +161,10 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                       if (error instanceof ApiError && error.status === 409) {
                         setNeedsConfirm(true);
                         setConfirmVisible(true);
-                        setStatus("Wykryto konflikt.");
+                        toast("Wykryto konflikt.", { kind: "error" });
                         return;
                       }
-                      setStatus("Nie udało się dodać dostępności.");
+                      toast("Nie udało się dodać dostępności.", { kind: "error" });
                     }
                   }}
                 >
@@ -205,7 +205,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                         try {
                           await apiPost(`/api/availability/${range.id}/delete`, session.token);
                         } catch {
-                          setStatus("Nie udało się usunąć terminu.");
+                          toast("Nie udało się usunąć terminu.", { kind: "error" });
                           return;
                         }
                         setAvailability((current) => current.filter((item) => item.id !== range.id));
@@ -219,7 +219,6 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
             ))
           )}
         </View>
-        {status ? <Text style={styles.status}>{status}</Text> : null}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Zasady domu</Text>
           {isOwner ? (
@@ -239,9 +238,9 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                   if (!session) return;
                   try {
                     await apiPatch(`/api/places/${placeId}`, session.token, { rules });
-                    setStatus("Zasady zapisane.");
+                    toast("Zasady zapisane.", { kind: "success" });
                   } catch {
-                    setStatus("Nie udało się zapisać zasad.");
+                    toast("Nie udało się zapisać zasad.", { kind: "error" });
                   }
                 }}
               >
@@ -274,7 +273,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                 <Text style={styles.muted}>{guides[item.key] ?? "Brak informacji."}</Text>
               )}
             </View>
-          ))
+          ))}
           {isOwner ? (
             <Pressable
               style={styles.button}
@@ -286,9 +285,9 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                     text: guides[item.key] ?? ""
                   }));
                   await apiPut(`/api/guides/${placeId}`, session.token, { entries });
-                  setStatus("Przewodnik zapisany.");
+                  toast("Przewodnik zapisany.", { kind: "success" });
                 } catch {
-                  setStatus("Nie udało się zapisać przewodnika.");
+                  toast("Nie udało się zapisać przewodnika.", { kind: "error" });
                 }
               }}
             >
@@ -329,7 +328,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                       ],
                       confirm: true
                     });
-                    setStatus("Dostępność dodana.");
+                    toast("Dostępność dodana.", { kind: "success" });
                     setConfirmVisible(false);
                     setNeedsConfirm(false);
                     const payload = await apiGet<{
@@ -338,7 +337,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                     }>(`/api/availability/place/${placeId}`, session.token);
                     setAvailability(payload.data?.ranges ?? []);
                   } catch {
-                    setStatus("Nie udało się dodać dostępności.");
+                    toast("Nie udało się dodać dostępności.", { kind: "error" });
                   }
                 }}
               >
@@ -348,7 +347,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -369,7 +368,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    paddingTop: 0,
+    paddingTop: 12,
     gap: 16,
     backgroundColor: theme.colors.bg
   },
@@ -495,9 +494,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12
   },
-  status: {
-    color: theme.colors.muted
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
@@ -549,5 +545,5 @@ const styles = StyleSheet.create({
   warning: {
     color: theme.colors.accent,
     fontSize: 12
-  }
+  },
 });
