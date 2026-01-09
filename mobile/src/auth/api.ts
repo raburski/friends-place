@@ -40,3 +40,34 @@ export async function revokeSession(token: string) {
     }
   });
 }
+
+export async function fetchMobileProfile(token: string) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/mobile`, {
+    headers: {
+      ...authHeaders(token)
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error("Profile fetch failed");
+  }
+
+  return response.json();
+}
+
+export async function updateProfile(token: string, data: { handle: string; displayName: string; locale?: string }) {
+  const response = await fetch(`${API_BASE_URL}/api/me`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error("Profile update failed");
+  }
+
+  return response.json();
+}

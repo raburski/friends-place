@@ -1,9 +1,97 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, Text, View, Pressable, TextInput } from "react-native";
+import { useState } from "react";
+import { WebView } from "react-native-webview";
 import { useSession } from "./src/auth/useSession";
+import { fetchMobileProfile, updateProfile } from "./src/auth/api";
 
 export default function App() {
-  const { session, exchange, refresh, revoke } = useSession();
+  const { session, exchange, refresh, revoke, setSessionData } = useSession();
+  const [profileComplete, setProfileComplete] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [handle, setHandle] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+
+  const ensureProfile = async (token: string) => {
+    try {
+      const response = await fetchMobileProfile(token);
+      const complete = Boolean(response?.data?.profileComplete);
+      setProfileComplete(complete);
+    } catch (err) {
+      setError("Nie udało się pobrać profilu.");
+    }
+  };
+
+  if (!session) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Zaloguj się</Text>
+        <Text style={styles.subtitle}>
+          Użyj logowania przez przeglądarkę, aby połączyć konto.
+        </Text>
+        <View style={styles.webviewWrapper}>
+          <WebView
+            source={{ uri: `${apiBase}/api/auth/signin?callbackUrl=${apiBase}/auth/mobile` }}
+            onMessage={async (event) => {
+              try {
+                const payload = JSON.parse(event.nativeEvent.data);
+                if (payload?.token && payload?.expiresAt) {
+                  await setSessionData(payload);
+                  await ensureProfile(payload.token);
+                }
+              } catch {
+                setError("Nie udało się odebrać tokenu.");
+              }
+            }}
+          />
+        </View>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <StatusBar style="auto" />
+      </View>
+    );
+  }
+
+  if (!profileComplete) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Uzupełnij profil</Text>
+        <Text style={styles.subtitle}>
+          Podaj nazwę i handle, aby korzystać z aplikacji.
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Imię / nazwa"
+          value={displayName}
+          onChangeText={setDisplayName}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="handle (np. marek_krk)"
+          value={handle}
+          onChangeText={setHandle}
+          autoCapitalize="none"
+        />
+        <Pressable
+          style={styles.button}
+          onPress={async () => {
+            setError(null);
+            try {
+              await updateProfile(session.token, { displayName, handle, locale: "pl" });
+              await ensureProfile(session.token);
+            } catch {
+              setError("Nie udało się zapisać profilu.");
+            }
+          }}
+        >
+          <Text style={styles.buttonText}>Zapisz profil</Text>
+        </Pressable>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <StatusBar style="auto" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -100,5 +188,27 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600"
+  },
+  webviewWrapper: {
+    height: 420,
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    marginTop: 16
+  },
+  input: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12
+  },
+  error: {
+    color: "#b91c1c",
+    marginTop: 12
   }
 });

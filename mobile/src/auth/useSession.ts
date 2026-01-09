@@ -12,10 +12,14 @@ export function useSession() {
       .finally(() => setLoading(false));
   }, []);
 
-  const exchange = async () => {
-    const next = await exchangeSession();
+  const setSessionData = async (next: MobileSession) => {
     await saveSession(next);
     setSession(next);
+  };
+
+  const exchange = async () => {
+    const next = await exchangeSession();
+    await setSessionData(next);
     return next;
   };
 
@@ -24,8 +28,7 @@ export function useSession() {
       return null;
     }
     const next = await refreshSession(session.token);
-    await saveSession(next);
-    setSession(next);
+    await setSessionData(next);
     return next;
   };
 
@@ -41,6 +44,7 @@ export function useSession() {
   return {
     session,
     loading,
+    setSessionData,
     exchange,
     refresh,
     revoke

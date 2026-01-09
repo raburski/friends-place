@@ -10,10 +10,11 @@
   },
   "dependencies": {
     "expo": "~54.0.31",
+    "expo-secure-store": "^13.0.1",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-native": "0.81.5",
-    "expo-secure-store": "^13.0.1"
+    "react-native-webview": "^13.6.6"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
