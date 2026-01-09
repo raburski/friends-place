@@ -15,6 +15,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [availability, setAvailability] = useState<Array<{ id: string; startDate: string; endDate: string }>>([]);
+  const [isOwner, setIsOwner] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [ownerMode, setOwnerMode] = useState(false);
   const [newRangeStart, setNewRangeStart] = useState(new Date());
@@ -24,11 +25,17 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
     if (!session) {
       return;
     }
-    apiGet<{ ok: boolean; data: Array<{ id: string; startDate: string; endDate: string }> }>(
+    apiGet<{
+      ok: boolean;
+      data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
+    }>(
       `/api/availability/place/${placeId}`,
       session.token
     )
-      .then((payload) => setAvailability(payload.data ?? []))
+      .then((payload) => {
+        setAvailability(payload.data?.ranges ?? []);
+        setIsOwner(Boolean(payload.data?.isOwner));
+      })
       .catch(() => setStatus("Nie udało się pobrać dostępności."));
   }, [session, placeId]);
 
@@ -65,73 +72,96 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
       >
         <Text style={styles.buttonText}>Wyślij prośbę</Text>
       </Pressable>
-      <Pressable
-        style={[styles.button, styles.secondaryButton]}
-        onPress={() => setOwnerMode((current) => !current)}
-      >
-        <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-          {ownerMode ? "Ukryj zarządzanie dostępnością" : "Dodaj dostępność (właściciel)"}
-        </Text>
-      </Pressable>
-      {ownerMode ? (
-        <View style={styles.ownerPanel}>
-          <Text style={styles.sectionTitle}>Nowy zakres</Text>
-          <View style={styles.pickerRow}>
-            <Text style={styles.label}>Start</Text>
-            <DateTimePicker
-              value={newRangeStart}
-              mode="date"
-              onChange={(_, date) => date && setNewRangeStart(date)}
-            />
-          </View>
-          <View style={styles.pickerRow}>
-            <Text style={styles.label}>Koniec</Text>
-            <DateTimePicker
-              value={newRangeEnd}
-              mode="date"
-              onChange={(_, date) => date && setNewRangeEnd(date)}
-            />
-          </View>
+      {isOwner ? (
+        <>
           <Pressable
-            style={styles.button}
-            onPress={async () => {
-              if (!session) {
-                setStatus("Brak sesji.");
-                return;
-              }
-              try {
-                await apiPost("/api/availability", session.token, {
-                  placeId,
-                  ranges: [
-                    {
-                      startDate: newRangeStart.toISOString(),
-                      endDate: newRangeEnd.toISOString()
-                    }
-                  ]
-                });
-                setStatus("Dostępność dodana.");
-                const payload = await apiGet<{
-                  ok: boolean;
-                  data: Array<{ id: string; startDate: string; endDate: string }>;
-                }>(`/api/availability/place/${placeId}`, session.token);
-                setAvailability(payload.data ?? []);
-              } catch {
-                setStatus("Nie udało się dodać dostępności.");
-              }
-            }}
+            style={[styles.button, styles.secondaryButton]}
+            onPress={() => setOwnerMode((current) => !current)}
           >
-            <Text style={styles.buttonText}>Zapisz dostępność</Text>
+            <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+              {ownerMode ? "Ukryj zarządzanie dostępnością" : "Dodaj dostępność (właściciel)"}
+            </Text>
           </Pressable>
-        </View>
+          {ownerMode ? (
+            <View style={styles.ownerPanel}>
+              <Text style={styles.sectionTitle}>Nowy zakres</Text>
+              <View style={styles.pickerRow}>
+                <Text style={styles.label}>Start</Text>
+                <DateTimePicker
+                  value={newRangeStart}
+                  mode="date"
+                  onChange={(_, date) => date && setNewRangeStart(date)}
+                />
+              </View>
+              <View style={styles.pickerRow}>
+                <Text style={styles.label}>Koniec</Text>
+                <DateTimePicker
+                  value={newRangeEnd}
+                  mode="date"
+                  onChange={(_, date) => date && setNewRangeEnd(date)}
+                />
+              </View>
+              <Pressable
+                style={styles.button}
+                onPress={async () => {
+                  if (!session) {
+                    setStatus("Brak sesji.");
+                    return;
+                  }
+                  try {
+                    await apiPost("/api/availability", session.token, {
+                      placeId,
+                      ranges: [
+                        {
+                          startDate: newRangeStart.toISOString(),
+                          endDate: newRangeEnd.toISOString()
+                        }
+                      ]
+                    });
+                    setStatus("Dostępność dodana.");
+                    const payload = await apiGet<{
+                      ok: boolean;
+                      data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
+                    }>(`/api/availability/place/${placeId}`, session.token);
+                    setAvailability(payload.data?.ranges ?? []);
+                  } catch {
+                    setStatus("Nie udało się dodać dostępności.");
+                  }
+                }}
+              >
+                <Text style={styles.buttonText}>Zapisz dostępność</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </>
       ) : null}
       <Text style={styles.sectionTitle}>Dostępność</Text>
       {availability.length === 0 ? (
         <Text style={styles.subtitle}>Brak terminów.</Text>
       ) : (
         availability.map((range) => (
-          <Text key={range.id} style={styles.rangeText}>
-            {formatDate(range.startDate)} → {formatDate(range.endDate)}
-          </Text>
+          <View key={range.id} style={styles.rangeRow}>
+            <Text style={styles.rangeText}>
+              {formatDate(range.startDate)} → {formatDate(range.endDate)}
+            </Text>
+            {isOwner ? (
+              <Pressable
+                style={styles.deleteButton}
+                onPress={async () => {
+                  if (!session) return;
+                  try {
+                    await apiPost(`/api/availability/${range.id}/delete`, session.token);
+                  } catch {
+                    setStatus("Nie udało się usunąć terminu.");
+                    return;
+                  }
+                  setAvailability((current) => current.filter((item) => item.id !== range.id));
+                }}
+              >
+                <Text style={styles.deleteButtonText}>Usuń</Text>
+              </Pressable>
+            ) : null}
+          </View>
         ))
       )}
       {status ? <Text style={styles.status}>{status}</Text> : null}
@@ -204,5 +234,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#4b4b4b",
     marginBottom: 4
+  },
+  rangeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4
+  },
+  deleteButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "#fee2e2"
+  },
+  deleteButtonText: {
+    color: "#991b1b",
+    fontSize: 12,
+    fontWeight: "600"
   }
 });

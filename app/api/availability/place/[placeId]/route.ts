@@ -12,10 +12,24 @@ export async function GET(
     return unauthorized();
   }
 
+  const place = await prisma.place.findUnique({
+    where: { id: params.placeId }
+  });
+
+  if (!place) {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+
   const ranges = await prisma.availabilityRange.findMany({
     where: { placeId: params.placeId },
     orderBy: { startDate: "asc" }
   });
 
-  return NextResponse.json({ ok: true, data: ranges });
+  return NextResponse.json({
+    ok: true,
+    data: {
+      ranges,
+      isOwner: place.ownerId === session.user.id
+    }
+  });
 }
