@@ -8,9 +8,11 @@
 
 ## Mobile (Expo)
 - Use NextAuth sign-in via WebView or `AuthSession`.
-- After OAuth, rely on NextAuth cookie in the webview and exchange for an app session.
-  - Option A: open a deep link to the app that hits `/api/auth/session` and stores the session.
-  - Option B (recommended): use `GET /api/me` after login and store a lightweight token from server.
+- After OAuth, exchange the web session for an app token:
+  - `POST /api/auth/mobile/exchange` returns a bearer token (30 days).
+  - Store and send `Authorization: Bearer <token>` on API calls.
+  - Optional logout: `POST /api/auth/mobile/revoke`.
+- `GET /api/auth/mobile` returns the current user and `profileComplete`.
 
 ## Required user fields
 - `handle` and `displayName` are required after signup.

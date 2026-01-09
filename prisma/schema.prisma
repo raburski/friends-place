@@ -72,6 +72,7 @@ model User {
   bookings    Booking[]   @relation("GuestBookings")
   notifications Notification[]
   pushTokens  PushToken[]
+  appSessions AppSession[]
   accounts    Account[]
   sessions    Session[]
 }
@@ -214,6 +215,17 @@ model PushToken {
   platform  PushPlatform
   createdAt DateTime     @default(now())
   user      User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model AppSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
