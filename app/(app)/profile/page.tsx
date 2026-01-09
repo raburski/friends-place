@@ -18,35 +18,45 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [needsProfile, setNeedsProfile] = useState(false);
 
-  const refresh = () => {
-    Promise.all([
-      apiFetch<{ ok: boolean; data: { displayName?: string; handle?: string } }>("/api/me"),
-      apiFetch<{ ok: boolean; data: Friend[] }>("/api/friends"),
-      apiFetch<{ ok: boolean; data: Array<{ friendshipId: string; handle?: string; displayName?: string }> }>(
-        "/api/friends/requests"
-      ),
-      apiFetch<{ ok: boolean; data: Invite[] }>("/api/invites")
-    ])
-      .then(([me, friendsPayload, requestsPayload, invitesPayload]) => {
-        setProfile(me.data ?? null);
-        setDisplayName(me.data?.displayName ?? "");
-        setHandle(me.data?.handle ?? "");
-        setNeedsProfile(!(me.data?.displayName && me.data?.handle));
-        setFriends(friendsPayload.data ?? []);
-        setRequests(requestsPayload.data ?? []);
-        setInvites(invitesPayload.data ?? []);
-      })
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) {
-          setError("Musisz się zalogować.");
-          return;
-        }
-        if (err instanceof ApiError) {
-          setError(`Nie udało się pobrać profilu. (${err.code ?? err.status})`);
-          return;
-        }
-        setError("Nie udało się pobrać profilu.");
-      });
+  const refresh = async () => {
+    try {
+      const me = await apiFetch<{ ok: boolean; data: { displayName?: string; handle?: string } }>(
+        "/api/me"
+      );
+      setProfile(me.data ?? null);
+      setDisplayName(me.data?.displayName ?? "");
+      setHandle(me.data?.handle ?? "");
+      const incomplete = !(me.data?.displayName && me.data?.handle);
+      setNeedsProfile(incomplete);
+      if (incomplete) {
+        return;
+      }
+
+      const [friendsPayload, requestsPayload, invitesPayload] = await Promise.all([
+        apiFetch<{ ok: boolean; data: Friend[] }>("/api/friends"),
+        apiFetch<{ ok: boolean; data: Array<{ friendshipId: string; handle?: string; displayName?: string }> }>(
+          "/api/friends/requests"
+        ),
+        apiFetch<{ ok: boolean; data: Invite[] }>("/api/invites")
+      ]);
+      setFriends(friendsPayload.data ?? []);
+      setRequests(requestsPayload.data ?? []);
+      setInvites(invitesPayload.data ?? []);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError("Musisz się zalogować.");
+        return;
+      }
+      if (err instanceof ApiError && err.code === "profile_incomplete") {
+        setNeedsProfile(true);
+        return;
+      }
+      if (err instanceof ApiError) {
+        setError(`Nie udało się pobrać profilu. (${err.code ?? err.status})`);
+        return;
+      }
+      setError("Nie udało się pobrać profilu.");
+    }
   };
 
   useEffect(() => {
