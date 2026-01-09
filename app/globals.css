@@ -108,6 +108,25 @@ main {
   gap: 20px;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal-card {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  padding: 20px;
+  width: min(420px, 100%);
+  border: 1px solid var(--color-border);
+}
+
 .card {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--color-border);
@@ -131,6 +150,10 @@ main {
 
   .card {
     background: rgba(28, 28, 28, 0.9);
+  }
+
+  .modal-card {
+    background: rgba(28, 28, 28, 0.98);
   }
 }
 

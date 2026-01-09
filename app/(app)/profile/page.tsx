@@ -70,8 +70,12 @@ export default function ProfilePage() {
       <div className="card">
         <strong>{profile?.displayName ?? "Brak nazwy"}</strong>
         <div className="muted">@{profile?.handle ?? "bez_handle"}</div>
-        {needsProfile ? (
-          <div style={{ marginTop: 12 }}>
+      </div>
+
+      {needsProfile ? (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h2 className="section-title">Uzupełnij profil</h2>
             <p className="muted">Uzupełnij profil, aby korzystać z aplikacji.</p>
             <div style={{ display: "grid", gap: 8, maxWidth: 320 }}>
               <input
@@ -102,8 +106,8 @@ export default function ProfilePage() {
               </button>
             </div>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <div className="card">
         <h2 className="section-title">Zaproszenia</h2>
