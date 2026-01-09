@@ -6,6 +6,7 @@ import { useSession } from "../auth/useSession";
 import { apiGet, apiPost, apiPatch, apiPut, ApiError } from "../api/client";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "../utils/date";
+import { AvailabilityRange, findMatchingRange } from "../utils/availability";
 
 export type PlaceDetailProps = NativeStackScreenProps<PlacesStackParamList, "PlaceDetail">;
 
@@ -14,11 +15,12 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const { placeId, name } = route.params;
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const [availability, setAvailability] = useState<Array<{ id: string; startDate: string; endDate: string }>>([]);
+  const [availability, setAvailability] = useState<AvailabilityRange[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [rules, setRules] = useState("");
   const [guides, setGuides] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<string | null>(null);
+  const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
   const [ownerMode, setOwnerMode] = useState(false);
   const [newRangeStart, setNewRangeStart] = useState(new Date());
   const [newRangeEnd, setNewRangeEnd] = useState(new Date());
@@ -73,6 +75,10 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
             return;
           }
           try {
+            if (!findMatchingRange(startDate, endDate, availability)) {
+              setAvailabilityHint("Wybrany termin nie mieści się w dostępności.");
+              return;
+            }
             await apiPost("/api/bookings", session.token, {
               placeId,
               startDate: startDate.toISOString(),
@@ -86,6 +92,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
       >
         <Text style={styles.buttonText}>Wyślij prośbę</Text>
       </Pressable>
+      {availabilityHint ? <Text style={styles.warning}>{availabilityHint}</Text> : null}
       {isOwner ? (
         <>
           <Pressable
@@ -167,6 +174,18 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
             <Text style={styles.rangeText}>
               {formatDate(range.startDate)} → {formatDate(range.endDate)}
             </Text>
+            {!isOwner ? (
+              <Pressable
+                style={styles.useButton}
+                onPress={() => {
+                  setStartDate(new Date(range.startDate));
+                  setEndDate(new Date(range.endDate));
+                  setAvailabilityHint(null);
+                }}
+              >
+                <Text style={styles.useButtonText}>Użyj</Text>
+              </Pressable>
+            ) : null}
             {isOwner ? (
               <Pressable
                 style={styles.deleteButton}
@@ -448,6 +467,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 4
   },
+  useButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "#dcfce7"
+  },
+  useButtonText: {
+    color: "#166534",
+    fontSize: 12,
+    fontWeight: "600"
+  },
   deleteButton: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -458,5 +488,10 @@ const styles = StyleSheet.create({
     color: "#991b1b",
     fontSize: 12,
     fontWeight: "600"
+  },
+  warning: {
+    marginTop: 8,
+    color: "#b45309",
+    fontSize: 12
   }
 });
