@@ -57,6 +57,76 @@ main {
   padding: 64px 24px;
 }
 
+.web-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.web-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px;
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(10px);
+}
+
+.web-nav__brand {
+  font-family: var(--font-heading);
+  font-size: 20px;
+}
+
+.web-nav__links {
+  display: flex;
+  gap: 16px;
+}
+
+.web-nav__link {
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.web-nav__link--active {
+  color: var(--color-primary);
+}
+
+.web-main {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 16px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.muted {
+  color: rgba(27, 27, 27, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  .web-nav {
+    background: rgba(18, 18, 18, 0.9);
+  }
+
+  .card {
+    background: rgba(28, 28, 28, 0.9);
+  }
+}
+
 .hero {
   width: min(960px, 100%);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.65));
