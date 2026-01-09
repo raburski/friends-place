@@ -24,6 +24,10 @@ export function PlacesScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Miejsca</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      <View style={styles.mapStub}>
+        <Text style={styles.mapTitle}>Mapa (wkrótce)</Text>
+        <Text style={styles.mapText}>Apple Maps placeholder</Text>
+      </View>
       {places.length === 0 ? (
         <Text style={styles.subtitle}>Brak miejsc do wyświetlenia.</Text>
       ) : (
@@ -65,6 +69,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#1b1b1b"
+  },
+  mapStub: {
+    width: "100%",
+    maxWidth: 360,
+    height: 180,
+    borderRadius: 16,
+    backgroundColor: "#f0ebe0",
+    borderColor: "#e5e0d5",
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  mapTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4
+  },
+  mapText: {
+    fontSize: 12,
+    color: "#4b4b4b"
   },
   error: {
     color: "#b91c1c"
