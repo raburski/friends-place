@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   request: Request,
@@ -26,22 +27,35 @@ export async function POST(
 
   const now = new Date();
 
-  const [updatedPlace] = await prisma.$transaction([
+  const [updatedPlace, canceledBookings] = await prisma.$transaction([
     prisma.place.update({
       where: { id: place.id },
       data: { isActive: false }
     }),
-    prisma.booking.updateMany({
+    prisma.booking.findMany({
       where: {
         placeId: place.id,
         startDate: { gt: now },
         status: { in: ["requested", "approved"] }
       },
-      data: { status: "canceled" }
     })
   ]);
 
-  // TODO: notify guests about cancellations.
+  if (canceledBookings.length > 0) {
+    await prisma.booking.updateMany({
+      where: { id: { in: canceledBookings.map((booking) => booking.id) } },
+      data: { status: "canceled" }
+    });
+
+    await Promise.all(
+      canceledBookings.map((booking) =>
+        createNotification(booking.guestId, "place_deactivated", {
+          placeId: place.id,
+          bookingId: booking.id
+        })
+      )
+    );
+  }
 
   return NextResponse.json({ ok: true, data: updatedPlace });
 }

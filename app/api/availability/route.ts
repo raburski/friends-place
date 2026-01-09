@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
+import { createNotification } from "@/lib/notifications";
 
 type RangeInput = {
   startDate: string;
@@ -56,7 +57,27 @@ export async function POST(request: NextRequest) {
     data
   });
 
-  // TODO: detect conflicts with existing bookings and require confirmation.
+  const conflictBookings = await prisma.booking.findMany({
+    where: {
+      placeId,
+      status: { in: ["requested", "approved"] },
+      OR: data.map((range) => ({
+        startDate: { lt: range.endDate },
+        endDate: { gt: range.startDate }
+      }))
+    }
+  });
+
+  if (conflictBookings.length > 0) {
+    await Promise.all(
+      conflictBookings.map((booking) =>
+        createNotification(booking.guestId, "availability_conflict", {
+          placeId,
+          bookingId: booking.id
+        })
+      )
+    );
+  }
 
   return NextResponse.json({ ok: true, data: created });
 }
