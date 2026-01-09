@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useSession } from "../auth/useSession";
 import { apiGet } from "../api/client";
+import type { PlacesStackParamList } from "../navigation/PlacesStack";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "PlacesList">;
 
 export function PlacesScreen() {
+  const navigation = useNavigation<PlacesNav>();
   const { session } = useSession();
   const [places, setPlaces] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +38,14 @@ export function PlacesScreen() {
         <Text style={styles.subtitle}>Brak miejsc do wyświetlenia.</Text>
       ) : (
         places.map((place) => (
-          <View key={place.id} style={styles.card}>
+          <Pressable
+            key={place.id}
+            style={styles.card}
+            onPress={() => navigation.navigate("PlaceDetail", { placeId: place.id, name: place.name })}
+          >
             <Text style={styles.cardTitle}>{place.name}</Text>
-          </View>
+            <Text style={styles.cardSub}>Zobacz szczegóły</Text>
+          </Pressable>
         ))
       )}
     </ScrollView>
@@ -69,6 +80,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#1b1b1b"
+  },
+  cardSub: {
+    fontSize: 12,
+    color: "#4b4b4b",
+    marginTop: 6
   },
   mapStub: {
     width: "100%",
