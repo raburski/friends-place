@@ -11,12 +11,20 @@ export async function GET() {
     return unauthorized();
   }
 
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { id: session.user.id }
   });
 
   if (!user) {
-    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+    user = await prisma.user.create({
+      data: {
+        id: session.user.id,
+        email: session.user.email ?? null,
+        name: session.user.name ?? null,
+        displayName: session.user.name ?? null,
+        locale: "pl"
+      }
+    });
   }
 
   return NextResponse.json({ ok: true, data: user });

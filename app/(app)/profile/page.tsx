@@ -41,6 +41,10 @@ export default function ProfilePage() {
           setError("Musisz się zalogować.");
           return;
         }
+        if (err instanceof ApiError) {
+          setError(`Nie udało się pobrać profilu. (${err.code ?? err.status})`);
+          return;
+        }
         setError("Nie udało się pobrać profilu.");
       });
   };
