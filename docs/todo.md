@@ -16,4 +16,4 @@
 - Decide on Nominatim usage policy + caching strategy (if needed).
 - Set a proper `NOMINATIM_USER_AGENT` (required by Nominatim usage policy).
 - Set `EXPO_PUBLIC_API_BASE_URL` for device testing in Expo.
-- Configure `react-native-maps` on iOS (Maps API keys if needed).
+- Configure `react-native-maps` on iOS (Apple Maps only; no API key).
