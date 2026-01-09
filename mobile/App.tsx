@@ -20,10 +20,20 @@ export default function App() {
     if (!soraLoaded || !frauncesLoaded) {
       return;
     }
-    Text.defaultProps = Text.defaultProps ?? {};
-    Text.defaultProps.style = [{ fontFamily: "Sora_400Regular" }, Text.defaultProps.style];
-    TextInput.defaultProps = TextInput.defaultProps ?? {};
-    TextInput.defaultProps.style = [{ fontFamily: "Sora_400Regular" }, TextInput.defaultProps.style];
+    const TextWithDefaults = Text as typeof Text & { defaultProps?: { style?: unknown } };
+    const TextInputWithDefaults = TextInput as typeof TextInput & { defaultProps?: { style?: unknown } };
+
+    TextWithDefaults.defaultProps = TextWithDefaults.defaultProps ?? {};
+    TextWithDefaults.defaultProps.style = [
+      { fontFamily: "Sora_400Regular" },
+      TextWithDefaults.defaultProps.style
+    ];
+
+    TextInputWithDefaults.defaultProps = TextInputWithDefaults.defaultProps ?? {};
+    TextInputWithDefaults.defaultProps.style = [
+      { fontFamily: "Sora_400Regular" },
+      TextInputWithDefaults.defaultProps.style
+    ];
   }, [soraLoaded, frauncesLoaded]);
 
   if (!soraLoaded || !frauncesLoaded) {

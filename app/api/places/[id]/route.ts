@@ -4,17 +4,17 @@ import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const resolvedParams = await params;
+  const { id } = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
   const place = await prisma.place.findUnique({
-    where: { id: resolvedParams.id }
+    where: { id }
   });
 
   if (!place) {
@@ -44,14 +44,14 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const resolvedParams = await params;
+  const { id } = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
   const place = await prisma.place.findUnique({
-    where: { id: resolvedParams.id }
+    where: { id }
   });
 
   if (!place) {

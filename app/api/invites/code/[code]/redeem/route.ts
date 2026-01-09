@@ -1,25 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
 import { createNotification } from "@/lib/notifications";
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
+  const { code } = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
-  const resolvedParams = await params;
-  if (!resolvedParams?.code) {
+  if (!code) {
     return NextResponse.json({ ok: false, error: "missing_code" }, { status: 400 });
   }
 
   const invite = await prisma.inviteLink.findUnique({
-    where: { code: resolvedParams.code }
+    where: { code }
   });
 
   if (!invite || invite.revokedAt) {

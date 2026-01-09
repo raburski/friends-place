@@ -1,20 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
 import { createNotification } from "@/lib/notifications";
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
   const place = await prisma.place.findUnique({
-    where: { id: params.id }
+    where: { id }
   });
 
   if (!place) {

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "../auth/useSession";
 import { apiGet, apiPost } from "../api/client";
 import { formatDate } from "../utils/date";
+import { theme } from "../theme";
 
 type Booking = {
   id: string;
@@ -46,162 +48,235 @@ export function BookingsScreen() {
   }, [session]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Rezerwacje</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Text style={styles.sectionTitle}>Moje pobyty</Text>
-      {myStays.length === 0 ? (
-        <Text style={styles.subtitle}>Brak pobytów.</Text>
-      ) : (
-        myStays.map((booking) => (
-          <View key={booking.id} style={styles.card}>
-            <Text style={styles.cardTitle}>Pobyt</Text>
-            <Text style={styles.cardText}>
-              {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
-            </Text>
-            <Text style={styles.cardText}>Status: {booking.status}</Text>
-          </View>
-        ))
-      )}
-      <Text style={styles.sectionTitle}>U mnie</Text>
-      {atMyPlaces.length === 0 ? (
-        <Text style={styles.subtitle}>Brak rezerwacji.</Text>
-      ) : (
-        atMyPlaces.map((booking) => (
-          <View key={booking.id} style={styles.card}>
-            <Text style={styles.cardTitle}>Rezerwacja</Text>
-            <Text style={styles.cardText}>
-              {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
-            </Text>
-            <Text style={[styles.cardText, styles.statusBadge, styles[`status_${booking.status}`]]}>
-              {booking.status}
-            </Text>
-            {booking.status === "requested" ? (
-              <View style={styles.buttonRow}>
-                <Pressable
-                  style={styles.smallButton}
-                  onPress={async () => {
-                    if (!session) return;
-                    await apiPost(`/api/bookings/${booking.id}/approve`, session.token);
-                    setAtMyPlaces((current) =>
-                      current.map((item) =>
-                        item.id === booking.id ? { ...item, status: "approved" } : item
-                      )
-                    );
-                  }}
-                >
-                  <Text style={styles.smallButtonText}>Akceptuj</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.smallButton, styles.secondaryButton]}
-                  onPress={async () => {
-                    if (!session) return;
-                    await apiPost(`/api/bookings/${booking.id}/decline`, session.token);
-                    setAtMyPlaces((current) =>
-                      current.map((item) =>
-                        item.id === booking.id ? { ...item, status: "declined" } : item
-                      )
-                    );
-                  }}
-                >
-                  <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>
-                    Odrzuć
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Rezerwacje</Text>
+        </View>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Moje pobyty</Text>
+          {myStays.length === 0 ? (
+            <Text style={styles.muted}>Brak pobytów.</Text>
+          ) : (
+            myStays.map((booking) => {
+              const statusKey = `status_${booking.status}` as keyof typeof styles;
+              const statusTextKey = `statusText_${booking.status}` as keyof typeof styles;
+              const statusStyle = styles[statusKey] as ViewStyle;
+              const statusTextStyle = styles[statusTextKey] as TextStyle;
+
+              return (
+                <View key={booking.id} style={styles.bookingCard}>
+                  <Text style={styles.cardTitle}>Pobyt</Text>
+                  <Text style={styles.cardText}>
+                    {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
                   </Text>
-                </Pressable>
-              </View>
-            ) : null}
-          </View>
-        ))
-      )}
-      <Text style={styles.sectionTitle}>Poprzednie</Text>
-      {history.length === 0 ? (
-        <Text style={styles.subtitle}>Brak historii.</Text>
-      ) : (
-        history.map((booking) => (
-          <View key={booking.id} style={styles.card}>
-            <Text style={styles.cardTitle}>Historia</Text>
-            <Text style={styles.cardText}>
-              {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
-            </Text>
-            <Text style={[styles.cardText, styles.statusBadge, styles[`status_${booking.status}`]]}>
-              {booking.status}
-            </Text>
-          </View>
-        ))
-      )}
-    </ScrollView>
+                  <View style={[styles.statusPill, statusStyle]}>
+                    <Text style={[styles.statusText, statusTextStyle]}>
+                      {booking.status}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>U mnie</Text>
+          {atMyPlaces.length === 0 ? (
+            <Text style={styles.muted}>Brak rezerwacji.</Text>
+          ) : (
+            atMyPlaces.map((booking) => {
+              const statusKey = `status_${booking.status}` as keyof typeof styles;
+              const statusTextKey = `statusText_${booking.status}` as keyof typeof styles;
+              const statusStyle = styles[statusKey] as ViewStyle;
+              const statusTextStyle = styles[statusTextKey] as TextStyle;
+
+              return (
+                <View key={booking.id} style={styles.bookingCard}>
+                  <Text style={styles.cardTitle}>Rezerwacja</Text>
+                  <Text style={styles.cardText}>
+                    {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
+                  </Text>
+                  <View style={[styles.statusPill, statusStyle]}>
+                    <Text style={[styles.statusText, statusTextStyle]}>
+                      {booking.status}
+                    </Text>
+                  </View>
+                  {booking.status === "requested" ? (
+                    <View style={styles.buttonRow}>
+                      <Pressable
+                        style={styles.smallButton}
+                        onPress={async () => {
+                          if (!session) return;
+                          await apiPost(`/api/bookings/${booking.id}/approve`, session.token);
+                          setAtMyPlaces((current) =>
+                            current.map((item) =>
+                              item.id === booking.id ? { ...item, status: "approved" } : item
+                            )
+                          );
+                        }}
+                      >
+                        <Text style={styles.smallButtonText}>Akceptuj</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.smallButton, styles.secondaryButton]}
+                        onPress={async () => {
+                          if (!session) return;
+                          await apiPost(`/api/bookings/${booking.id}/decline`, session.token);
+                          setAtMyPlaces((current) =>
+                            current.map((item) =>
+                              item.id === booking.id ? { ...item, status: "declined" } : item
+                            )
+                          );
+                        }}
+                      >
+                        <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>
+                          Odrzuć
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })
+          )}
+        </View>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Poprzednie</Text>
+          {history.length === 0 ? (
+            <Text style={styles.muted}>Brak historii.</Text>
+          ) : (
+            history.map((booking) => {
+              const statusKey = `status_${booking.status}` as keyof typeof styles;
+              const statusTextKey = `statusText_${booking.status}` as keyof typeof styles;
+              const statusStyle = styles[statusKey] as ViewStyle;
+              const statusTextStyle = styles[statusTextKey] as TextStyle;
+
+              return (
+                <View key={booking.id} style={styles.bookingCard}>
+                  <Text style={styles.cardTitle}>Historia</Text>
+                  <Text style={styles.cardText}>
+                    {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
+                  </Text>
+                  <View style={[styles.statusPill, statusStyle]}>
+                    <Text style={[styles.statusText, statusTextStyle]}>
+                      {booking.status}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.bg
+  },
   container: {
     flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 0,
+    gap: 16,
+    backgroundColor: theme.colors.bg
+  },
+  headerRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
-    padding: 24,
-    backgroundColor: "#f7f4ee"
+    justifyContent: "space-between",
+    gap: 12
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "600",
     fontFamily: "Fraunces_600SemiBold",
-    marginBottom: 20
+    color: theme.colors.text
+  },
+  sectionCard: {
+    padding: 16,
+    borderRadius: theme.radius.sheet,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 12,
+    ...theme.shadow.soft
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    marginTop: 16,
-    marginBottom: 12,
-    alignSelf: "flex-start"
+    color: theme.colors.text,
+    fontFamily: "Fraunces_600SemiBold"
   },
   error: {
-    color: "#b91c1c",
-    marginBottom: 8
+    color: theme.colors.error
   },
-  subtitle: {
-    color: "#4b4b4b",
-    alignSelf: "flex-start"
+  muted: {
+    color: theme.colors.muted
   },
-  card: {
-    width: "100%",
-    maxWidth: 360,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    marginBottom: 12
+  bookingCard: {
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
+    gap: 6
   },
   cardTitle: {
     fontSize: 14,
     fontWeight: "600",
-    marginBottom: 6
+    color: theme.colors.text
   },
   cardText: {
     fontSize: 13,
-    color: "#4b4b4b"
+    color: theme.colors.muted
   },
-  statusBadge: {
+  statusPill: {
     alignSelf: "flex-start",
-    marginTop: 6,
-    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.pill
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
     textTransform: "uppercase"
   },
   status_requested: {
-    backgroundColor: "#fef3c7",
-    color: "#92400e"
+    backgroundColor: "rgba(217, 119, 6, 0.16)"
   },
   status_approved: {
-    backgroundColor: "#dcfce7",
-    color: "#166534"
+    backgroundColor: "rgba(44, 122, 123, 0.16)"
   },
   status_declined: {
-    backgroundColor: "#fee2e2",
-    color: "#991b1b"
+    backgroundColor: "rgba(185, 28, 28, 0.12)"
   },
   status_canceled: {
-    backgroundColor: "#e5e7eb",
-    color: "#374151"
+    backgroundColor: "rgba(75, 75, 75, 0.12)"
+  },
+  status_completed: {
+    backgroundColor: "rgba(44, 122, 123, 0.12)"
+  },
+  statusText_requested: {
+    color: theme.colors.accent
+  },
+  statusText_approved: {
+    color: theme.colors.primary
+  },
+  statusText_declined: {
+    color: theme.colors.error
+  },
+  statusText_canceled: {
+    color: theme.colors.muted
+  },
+  statusText_completed: {
+    color: theme.colors.primary
   },
   buttonRow: {
     flexDirection: "row",
@@ -211,8 +286,8 @@ const styles = StyleSheet.create({
   smallButton: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: "#2c7a7b"
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primary
   },
   smallButtonText: {
     color: "#fff",
@@ -220,9 +295,11 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   secondaryButton: {
-    backgroundColor: "#f3e9d2"
+    backgroundColor: theme.colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.border
   },
   secondaryButtonText: {
-    color: "#7c5a00"
+    color: theme.colors.accent
   }
 });

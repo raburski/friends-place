@@ -1,24 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ placeId: string }> }
 ) {
-  const resolvedParams = await params;
+  const { placeId } = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
-  if (!resolvedParams?.placeId) {
+  if (!placeId) {
     return NextResponse.json({ ok: false, error: "missing_place_id" }, { status: 400 });
   }
 
   const place = await prisma.place.findUnique({
-    where: { id: resolvedParams.placeId }
+    where: { id: placeId }
   });
 
   if (!place) {
@@ -26,7 +26,7 @@ export async function GET(
   }
 
   const ranges = await prisma.availabilityRange.findMany({
-    where: { placeId: resolvedParams.placeId },
+    where: { placeId },
     orderBy: { startDate: "asc" }
   });
 

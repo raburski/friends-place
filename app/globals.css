@@ -672,6 +672,13 @@ textarea {
   color: inherit;
 }
 
+.place-card__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .place-card--active,
 .place-card:hover {
   border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));

@@ -1,19 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await requireSession();
   if (!session) {
     return unauthorized();
   }
 
   const availability = await prisma.availabilityRange.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { place: true }
   });
 

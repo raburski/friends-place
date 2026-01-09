@@ -67,9 +67,11 @@ export default function PlacesPage() {
           ) : (
             friendPlaces.map((place) => (
               <Link key={place.id} className="place-card" href={`/places/${place.id}`}>
-                <strong>{place.name}</strong>
+                <div className="place-card__title-row">
+                  <strong>{place.name}</strong>
+                  <span className="pill">{ownerLabel(place)}</span>
+                </div>
                 <div className="muted">{place.address}</div>
-                <span className="pill">{ownerLabel(place)}</span>
               </Link>
             ))
           )}
@@ -91,9 +93,11 @@ export default function PlacesPage() {
           ) : (
             myPlaces.map((place) => (
               <Link key={place.id} className="place-card" href={`/places/${place.id}`}>
-                <strong>{place.name}</strong>
+                <div className="place-card__title-row">
+                  <strong>{place.name}</strong>
+                  <span className="pill">Ty</span>
+                </div>
                 <div className="muted">{place.address}</div>
-                <span className="pill">Ty</span>
               </Link>
             ))
           )}

@@ -1,24 +1,20 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Share, Modal } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSession } from "../auth/useSession";
-import { apiGet, apiPost } from "../api/client";
+import { apiGet } from "../api/client";
+import { theme } from "../theme";
+import type { ProfileStackParamList } from "../navigation/ProfileStack";
+import { CaretRight, Gear } from "phosphor-react-native";
 
 export function ProfileScreen() {
-  const { session, revoke } = useSession();
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList, "ProfileHome">>();
+  const { session } = useSession();
   const [profile, setProfile] = useState<{ displayName?: string; handle?: string } | null>(null);
   const [friendsCount, setFriendsCount] = useState(0);
-  const [friends, setFriends] = useState<
-    Array<{ friendshipId: string; friendId: string; handle?: string; displayName?: string }>
-  >([]);
-  const [requests, setRequests] = useState<Array<{ friendshipId: string; handle?: string; displayName?: string }>>(
-    []
-  );
-  const [invites, setInvites] = useState<
-    Array<{ id: string; code: string; type: string; revokedAt?: string | null }>
-  >([]);
   const [error, setError] = useState<string | null>(null);
-  const [revokeInviteId, setRevokeInviteId] = useState<string | null>(null);
-  const [removeFriendId, setRemoveFriendId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -29,325 +25,127 @@ export function ProfileScreen() {
         "/api/me",
         session.token
       ),
-      apiGet<{ ok: boolean; data: Array<{ friendshipId: string; friendId: string; handle?: string; displayName?: string }> }>(
-        "/api/friends",
-        session.token
-      ),
-      apiGet<{ ok: boolean; data: Array<{ friendshipId: string; handle?: string; displayName?: string }> }>(
-        "/api/friends/requests",
-        session.token
-      ),
-      apiGet<{ ok: boolean; data: Array<{ id: string; code: string; type: string; revokedAt?: string | null }> }>(
-        "/api/invites",
-        session.token
-      )
+      apiGet<{
+        ok: boolean;
+        data: Array<{ friendshipId: string; friendId: string; handle?: string; displayName?: string }>;
+      }>("/api/friends", session.token)
     ])
-      .then(([me, friendsPayload, pending, invitesPayload]) => {
+      .then(([me, friendsPayload]) => {
         setProfile(me.data ?? null);
-        setFriends(friendsPayload.data ?? []);
         setFriendsCount(friendsPayload.data?.length ?? 0);
-        setRequests(pending.data ?? []);
-        setInvites(invitesPayload.data ?? []);
       })
       .catch(() => setError("Nie udało się pobrać profilu."));
   }, [session]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Profil</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {profile ? (
-        <>
-          <Text style={styles.subtitle}>{profile.displayName ?? "Brak nazwy"}</Text>
-          <Text style={styles.subtle}>@{profile.handle ?? "bez_handle"}</Text>
-        </>
-      ) : null}
-      <Text style={styles.subtle}>Znajomi: {friendsCount}</Text>
-      <Text style={styles.sectionTitle}>Zaproszenia</Text>
-      {requests.length === 0 ? (
-        <Text style={styles.subtle}>Brak nowych zaproszeń.</Text>
-      ) : (
-        requests.map((request) => (
-          <View key={request.friendshipId} style={styles.card}>
-            <Text style={styles.cardTitle}>
-              {request.displayName ?? "Nowy znajomy"}
-            </Text>
-            <Text style={styles.cardText}>@{request.handle ?? "bez_handle"}</Text>
-            <View style={styles.buttonRow}>
-              <Pressable
-                style={styles.smallButton}
-                onPress={async () => {
-                  if (!session) return;
-                  await apiPost("/api/friends/respond", session.token, {
-                    friendshipId: request.friendshipId,
-                    accept: true
-                  });
-                  setRequests((current) =>
-                    current.filter((item) => item.friendshipId !== request.friendshipId)
-                  );
-                }}
-              >
-                <Text style={styles.smallButtonText}>Akceptuj</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.smallButton, styles.secondaryButton]}
-                onPress={async () => {
-                  if (!session) return;
-                  await apiPost("/api/friends/respond", session.token, {
-                    friendshipId: request.friendshipId,
-                    accept: false
-                  });
-                  setRequests((current) =>
-                    current.filter((item) => item.friendshipId !== request.friendshipId)
-                  );
-                }}
-              >
-                <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>
-                  Odrzuć
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ))
-      )}
-      <Text style={styles.sectionTitle}>Znajomi</Text>
-      {friends.length === 0 ? (
-        <Text style={styles.subtle}>Brak znajomych.</Text>
-      ) : (
-        friends.map((friend) => (
-          <View key={friend.friendshipId} style={styles.card}>
-            <Text style={styles.cardTitle}>
-              {friend.displayName ?? "Znajomy"}
-            </Text>
-            <Text style={styles.cardText}>@{friend.handle ?? "bez_handle"}</Text>
-            <Pressable
-              style={[styles.smallButton, styles.secondaryButton]}
-              onPress={() => setRemoveFriendId(friend.friendId)}
-            >
-              <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Usuń</Text>
-            </Pressable>
-          </View>
-        ))
-      )}
-      <Text style={styles.sectionTitle}>Dodaj znajomego</Text>
-      <Text style={styles.subtle}>Udostępnij swój link zaproszenia.</Text>
-      <Text style={styles.sectionTitle}>Twój link zaproszenia</Text>
-      {invites.length === 0 ? (
-        <Text style={styles.subtle}>Brak linków.</Text>
-      ) : (
-        invites
-          .filter((invite) => !invite.revokedAt)
-          .map((invite) => (
-            <View key={invite.id} style={styles.inviteRow}>
-              <View style={styles.inviteMeta}>
-                <Text style={styles.cardTitle}>
-                  {invite.type === "single" ? "Jednorazowy" : "Wielorazowy"}
-                </Text>
-                <Text style={styles.cardText}>Kod: {invite.code}</Text>
-              </View>
-              <View style={styles.inviteActions}>
-                <Pressable
-                  style={styles.smallButton}
-                  onPress={async () => {
-                    await Share.share({
-                      message: `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000"}/auth/invite/${invite.code}`
-                    });
-                  }}
-                >
-                  <Text style={styles.smallButtonText}>Udostępnij</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.smallButton, styles.secondaryButton]}
-                  onPress={() => setRevokeInviteId(invite.id)}
-                >
-                  <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Wycofaj</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))
-      )}
-      <Text style={styles.subtle}>Link jest tworzony automatycznie.</Text>
-      <Pressable style={styles.button} onPress={revoke}>
-        <Text style={styles.buttonText}>Wyloguj</Text>
-      </Pressable>
-      <Modal transparent visible={Boolean(revokeInviteId)} animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.cardTitle}>Wycofać link?</Text>
-            <Text style={styles.subtle}>Link przestanie działać natychmiast.</Text>
-            <View style={styles.buttonRow}>
-              <Pressable
-                style={[styles.smallButton, styles.secondaryButton]}
-                onPress={() => setRevokeInviteId(null)}
-              >
-                <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Anuluj</Text>
-              </Pressable>
-              <Pressable
-                style={styles.smallButton}
-                onPress={async () => {
-                  if (!session || !revokeInviteId) return;
-                  await apiPost(`/api/invites/${revokeInviteId}/revoke`, session.token);
-                  setRevokeInviteId(null);
-                  setInvites((current) =>
-                    current.map((item) =>
-                      item.id === revokeInviteId ? { ...item, revokedAt: new Date().toISOString() } : item
-                    )
-                  );
-                }}
-              >
-                <Text style={styles.smallButtonText}>Wycofaj</Text>
-              </Pressable>
-            </View>
-          </View>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Profil</Text>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => navigation.navigate("Settings")}
+            accessibilityRole="button"
+            accessibilityLabel="Ustawienia"
+          >
+            <Gear color={theme.colors.text} size={20} weight="bold" />
+          </Pressable>
         </View>
-      </Modal>
-      <Modal transparent visible={Boolean(removeFriendId)} animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.cardTitle}>Usunąć znajomego?</Text>
-            <Text style={styles.subtle}>Stracicie dostęp do swoich miejsc.</Text>
-            <View style={styles.buttonRow}>
-              <Pressable
-                style={[styles.smallButton, styles.secondaryButton]}
-                onPress={() => setRemoveFriendId(null)}
-              >
-                <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>Anuluj</Text>
-              </Pressable>
-              <Pressable
-                style={styles.smallButton}
-                onPress={async () => {
-                  if (!session || !removeFriendId) return;
-                  await apiPost("/api/friends/unfriend", session.token, {
-                    friendId: removeFriendId
-                  });
-                  setFriends((current) =>
-                    current.filter((item) => item.friendId !== removeFriendId)
-                  );
-                  setRemoveFriendId(null);
-                }}
-              >
-                <Text style={styles.smallButtonText}>Usuń</Text>
-              </Pressable>
-            </View>
-          </View>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Twoje konto</Text>
+          {profile ? (
+            <>
+              <Text style={styles.subtitle}>{profile.displayName ?? "Brak nazwy"}</Text>
+              <Text style={styles.muted}>@{profile.handle ?? "bez_handle"}</Text>
+            </>
+          ) : null}
+          <Text style={styles.muted}>Znajomi: {friendsCount}</Text>
         </View>
-      </Modal>
-    </View>
+        <Pressable style={styles.panelButton} onPress={() => navigation.navigate("Friends")}>
+          <Text style={styles.panelText}>Koledzy</Text>
+          <CaretRight color={theme.colors.muted} size={18} weight="bold" />
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
+    backgroundColor: theme.colors.bg
+  },
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 0,
+    gap: 16,
+    backgroundColor: theme.colors.bg
+  },
+  headerRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#f7f4ee"
+    justifyContent: "space-between",
+    gap: 12
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "600",
     fontFamily: "Fraunces_600SemiBold",
-    marginBottom: 24
+    color: theme.colors.text
   },
   subtitle: {
     fontSize: 16,
-    marginBottom: 4
+    color: theme.colors.text
+  },
+  sectionCard: {
+    padding: 16,
+    borderRadius: theme.radius.sheet,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 12,
+    ...theme.shadow.soft
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    marginTop: 16,
-    marginBottom: 12
+    color: theme.colors.text,
+    fontFamily: "Fraunces_600SemiBold"
   },
-  subtle: {
+  muted: {
     fontSize: 14,
-    color: "#4b4b4b",
-    marginBottom: 8
+    color: theme.colors.muted
   },
-  card: {
-    width: "100%",
-    maxWidth: 360,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    marginBottom: 12
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: "600"
-  },
-  cardText: {
-    fontSize: 12,
-    color: "#4b4b4b"
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 8
-  },
-  smallButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: "#2c7a7b"
-  },
-  smallButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 12
-  },
-  secondaryButton: {
-    backgroundColor: "#f3e9d2"
-  },
-  secondaryButtonText: {
-    color: "#7c5a00"
-  },
-  inviteRow: {
-    width: "100%",
-    maxWidth: 360,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12
-  },
-  inviteMeta: {
-    flex: 1
-  },
-  inviteActions: {
-    flexDirection: "row",
-    gap: 8
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 320,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16
-  },
-  button: {
-    backgroundColor: "#2c7a7b",
-    paddingVertical: 10,
+  panelButton: {
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 999
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
   },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600"
+  panelText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.colors.text
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center"
   },
   error: {
-    color: "#b91c1c",
-    marginBottom: 8
+    color: theme.colors.error
   }
 });
