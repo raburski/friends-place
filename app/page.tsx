@@ -13,12 +13,12 @@ export default function Home() {
             kolegów dla kolegów.
           </p>
           <div className="cta-row">
-            <button className="cta" type="button">
+            <a className="cta" href="/api/auth/signin?callbackUrl=/places">
               Zaloguj / Pobierz aplikację
-            </button>
-            <button className="secondary" type="button">
+            </a>
+            <a className="secondary" href="/places">
               Dowiedz się więcej
-            </button>
+            </a>
           </div>
           <p className="footer-note">
             Najpierw zaproszenie od znajomego, potem dostęp do miejsc i
