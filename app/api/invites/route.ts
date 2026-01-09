@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { unauthorized } from "@/lib/api";
+import { unauthorized, profileIncomplete } from "@/lib/api";
+import { isProfileComplete } from "@/lib/profile";
 
 function randomCode() {
   return Math.random().toString(36).slice(2, 10);
@@ -11,6 +12,12 @@ export async function GET() {
   const session = await requireSession();
   if (!session) {
     return unauthorized();
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id }
+  });
+  if (!isProfileComplete(user)) {
+    return profileIncomplete();
   }
 
   const invites = await prisma.inviteLink.findMany({
@@ -25,6 +32,12 @@ export async function POST(request: NextRequest) {
   const session = await requireSession();
   if (!session) {
     return unauthorized();
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id }
+  });
+  if (!isProfileComplete(user)) {
+    return profileIncomplete();
   }
 
   const body = await request.json();

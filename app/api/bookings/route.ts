@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { unauthorized } from "@/lib/api";
+import { unauthorized, profileIncomplete } from "@/lib/api";
 import { createNotification } from "@/lib/notifications";
+import { isProfileComplete } from "@/lib/profile";
 
 export async function GET() {
   const session = await requireSession();
   if (!session) {
     return unauthorized();
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id }
+  });
+  if (!isProfileComplete(user)) {
+    return profileIncomplete();
   }
 
   const userId = session.user.id;

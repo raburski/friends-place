@@ -17,3 +17,10 @@ export function unauthorized() {
     { status: 401 }
   );
 }
+
+export function profileIncomplete() {
+  return NextResponse.json(
+    { ok: false, error: "profile_incomplete" },
+    { status: 409 }
+  );
+}
