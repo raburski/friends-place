@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { useNotifications } from "../notifications/NotificationsProvider";
 import { formatDate } from "../utils/date";
+import { notificationLabels } from "../notifications/labels";
 
 export function NotificationsScreen() {
   const { notifications, unreadCount, markAllRead } = useNotifications();
@@ -18,7 +19,9 @@ export function NotificationsScreen() {
       ) : (
         notifications.map((item) => (
           <View key={item.id} style={[styles.card, item.readAt ? styles.cardRead : null]}>
-            <Text style={styles.cardTitle}>{item.type}</Text>
+            <Text style={styles.cardTitle}>
+              {notificationLabels[item.type] ?? item.type}
+            </Text>
             <Text style={styles.cardText}>{formatDate(item.createdAt)}</Text>
           </View>
         ))
