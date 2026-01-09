@@ -13,3 +13,4 @@
 - Add Expo push credentials (once notifications are wired).
 - Set Google Maps JS API key (web map) and restrict domains.
 - Decide on Nominatim usage policy + caching strategy (if needed).
+- Set a proper `NOMINATIM_USER_AGENT` (required by Nominatim usage policy).

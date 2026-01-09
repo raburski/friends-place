@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { unauthorized } from "@/lib/api";
+import { geocodeAddress } from "@/lib/geocoding";
+import { timezoneFromCoords } from "@/lib/timezone";
 
 export async function GET() {
   const session = await requireSession();
@@ -48,18 +50,43 @@ export async function POST(request: NextRequest) {
 
   const name = body?.name?.trim();
   const address = body?.address?.trim();
-  const lat = Number(body?.lat);
-  const lng = Number(body?.lng);
-  const timezone = body?.timezone?.trim();
+  const inputLat = body?.lat;
+  const inputLng = body?.lng;
+  const inputTimezone = body?.timezone?.trim();
 
-  if (!name || !address || Number.isNaN(lat) || Number.isNaN(lng) || !timezone) {
+  if (!name || !address) {
     return NextResponse.json(
       { ok: false, error: "invalid_request", message: "Missing required fields" },
       { status: 400 }
     );
   }
 
-  // TODO: server-side geocoding + timezone derivation via Nominatim.
+  let lat = typeof inputLat === "number" ? inputLat : Number(inputLat);
+  let lng = typeof inputLng === "number" ? inputLng : Number(inputLng);
+  let timezone = inputTimezone;
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    const geocoded = await geocodeAddress(address);
+    if (!geocoded) {
+      return NextResponse.json(
+        { ok: false, error: "geocode_failed" },
+        { status: 400 }
+      );
+    }
+    lat = geocoded.lat;
+    lng = geocoded.lng;
+  }
+
+  if (!timezone) {
+    timezone = timezoneFromCoords(lat, lng) ?? undefined;
+  }
+
+  if (!timezone) {
+    return NextResponse.json(
+      { ok: false, error: "timezone_missing" },
+      { status: 400 }
+    );
+  }
 
   const place = await prisma.place.create({
     data: {
