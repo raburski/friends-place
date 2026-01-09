@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+}
+
+enum InviteLinkType {
+  single
+  multi
+}
+
+enum PlaceType {
+  apartment
+  house
+}
+
+enum BookingStatus {
+  requested
+  approved
+  declined
+  canceled
+  completed
+}
+
+enum GuideCategoryKey {
+  access
+  sleep
+  wash
+  eat_drink
+  operate
+}
+
+enum NotificationType {
+  friend_accepted
+  booking_requested
+  booking_approved
+  booking_declined
+  booking_canceled
+  place_deactivated
+  availability_conflict
+  invite_signup
+}
+
+enum PushPlatform {
+  expo
+}
+
+model User {
+  id          String      @id @default(cuid())
+  handle      String      @unique
+  displayName String
+  email       String      @unique
+  isAdmin     Boolean     @default(false)
+  locale      String      @default("pl")
+  createdAt   DateTime    @default(now())
+  friendships Friendship[] @relation("Friendships")
+  friendsWith Friendship[] @relation("FriendshipsReverse")
+  invites     InviteLink[]
+  places      Place[]
+  bookings    Booking[]   @relation("GuestBookings")
+  notifications Notification[]
+  pushTokens  PushToken[]
+}
+
+model Friendship {
+  id            String           @id @default(cuid())
+  userId        String
+  friendId      String
+  status        FriendshipStatus
+  requestedById String
+  createdAt     DateTime         @default(now())
+  user          User             @relation("Friendships", fields: [userId], references: [id])
+  friend        User             @relation("FriendshipsReverse", fields: [friendId], references: [id])
+
+  @@unique([userId, friendId])
+  @@index([friendId])
+}
+
+model InviteLink {
+  id           String        @id @default(cuid())
+  creatorId    String
+  type         InviteLinkType
+  code         String        @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  usedByUserId String?
+  createdAt    DateTime      @default(now())
+  creator      User          @relation(fields: [creatorId], references: [id])
+}
+
+model Place {
+  id          String     @id @default(cuid())
+  ownerId     String
+  name        String
+  address     String
+  lat         Float
+  lng         Float
+  timezone    String
+  type        PlaceType?
+  description String?
+  rules       String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  owner       User       @relation(fields: [ownerId], references: [id])
+  availability AvailabilityRange[]
+  bookings    Booking[]
+  guides      GuideEntry[]
+
+  @@index([ownerId])
+}
+
+model AvailabilityRange {
+  id        String   @id @default(cuid())
+  placeId   String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  place     Place    @relation(fields: [placeId], references: [id])
+
+  @@index([placeId])
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  placeId   String
+  guestId   String
+  startDate DateTime
+  endDate   DateTime
+  status    BookingStatus
+  createdAt DateTime      @default(now())
+  place     Place         @relation(fields: [placeId], references: [id])
+  guest     User          @relation("GuestBookings", fields: [guestId], references: [id])
+
+  @@index([placeId])
+  @@index([guestId])
+}
+
+model GuideEntry {
+  id          String           @id @default(cuid())
+  placeId     String
+  categoryKey GuideCategoryKey
+  text        String
+  createdAt   DateTime         @default(now())
+  place       Place            @relation(fields: [placeId], references: [id])
+
+  @@index([placeId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model PushToken {
+  id        String       @id @default(cuid())
+  userId    String
+  token     String       @unique
+  platform  PushPlatform
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
