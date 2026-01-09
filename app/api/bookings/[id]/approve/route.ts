@@ -73,7 +73,10 @@ export async function POST(
   await createNotification(booking.guestId, "booking_approved", {
     bookingId: booking.id,
     placeId: booking.placeId,
-    ownerId: session.user.id
+    placeName: booking.place.name,
+    ownerId: session.user.id,
+    startDate: booking.startDate.toISOString(),
+    endDate: booking.endDate.toISOString()
   });
 
   return NextResponse.json({ ok: true, data: updated });

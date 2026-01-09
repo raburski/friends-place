@@ -39,7 +39,10 @@ export async function POST(
   await createNotification(recipientId, "booking_canceled", {
     bookingId: booking.id,
     placeId: booking.placeId,
-    canceledById: session.user.id
+    placeName: booking.place.name,
+    canceledById: session.user.id,
+    startDate: booking.startDate.toISOString(),
+    endDate: booking.endDate.toISOString()
   });
 
   return NextResponse.json({ ok: true, data: updated });

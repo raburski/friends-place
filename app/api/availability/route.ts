@@ -94,7 +94,10 @@ export async function POST(request: NextRequest) {
       conflictBookings.map((booking) =>
         createNotification(booking.guestId, "availability_conflict", {
           placeId,
-          bookingId: booking.id
+          bookingId: booking.id,
+          placeName: place.name,
+          startDate: booking.startDate.toISOString(),
+          endDate: booking.endDate.toISOString()
         })
       )
     );

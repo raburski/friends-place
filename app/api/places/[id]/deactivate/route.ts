@@ -51,7 +51,10 @@ export async function POST(
       canceledBookings.map((booking) =>
         createNotification(booking.guestId, "place_deactivated", {
           placeId: place.id,
-          bookingId: booking.id
+          bookingId: booking.id,
+          placeName: place.name,
+          startDate: booking.startDate.toISOString(),
+          endDate: booking.endDate.toISOString()
         })
       )
     );
