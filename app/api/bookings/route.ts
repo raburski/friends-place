@@ -5,7 +5,7 @@ import { unauthorized, profileIncomplete } from "@/lib/api";
 import { createNotification } from "@/lib/notifications";
 import { isProfileComplete } from "@/lib/profile";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await requireSession();
   if (!session) {
     return unauthorized();
@@ -18,14 +18,22 @@ export async function GET() {
   }
 
   const userId = session.user.id;
+  const url = new URL(request.url);
+  const includeHistory = url.searchParams.get("history") === "true";
 
   const [myStays, atMyPlaces] = await Promise.all([
     prisma.booking.findMany({
-      where: { guestId: userId },
+      where: {
+        guestId: userId,
+        ...(includeHistory ? {} : { status: { notIn: ["canceled", "declined", "completed"] } })
+      },
       orderBy: { startDate: "desc" }
     }),
     prisma.booking.findMany({
-      where: { place: { ownerId: userId } },
+      where: {
+        place: { ownerId: userId },
+        ...(includeHistory ? {} : { status: { notIn: ["canceled", "declined", "completed"] } })
+      },
       orderBy: { startDate: "desc" },
       include: { place: true }
     })

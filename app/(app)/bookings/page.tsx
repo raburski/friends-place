@@ -18,11 +18,22 @@ type BookingsPayload = {
 
 export default function BookingsPage() {
   const [data, setData] = useState<BookingsPayload>({ myStays: [], atMyPlaces: [] });
+  const [history, setHistory] = useState<Booking[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch<{ ok: boolean; data: BookingsPayload }>("/api/bookings")
-      .then((payload) => setData(payload.data))
+    Promise.all([
+      apiFetch<{ ok: boolean; data: BookingsPayload }>("/api/bookings"),
+      apiFetch<{ ok: boolean; data: BookingsPayload }>("/api/bookings?history=true")
+    ])
+      .then(([currentPayload, historyPayload]) => {
+        setData(currentPayload.data);
+        const past = [
+          ...historyPayload.data.myStays,
+          ...historyPayload.data.atMyPlaces
+        ].filter((booking) => ["canceled", "declined", "completed"].includes(booking.status));
+        setHistory(past);
+      })
       .catch(() => setError("Nie udało się pobrać rezerwacji."));
   }, []);
 
@@ -80,6 +91,18 @@ export default function BookingsPage() {
                   </button>
                 </div>
               ) : null}
+            </div>
+          ))
+        )}
+      </div>
+      <div className="card">
+        <h2 className="section-title">Poprzednie</h2>
+        {history.length === 0 ? (
+          <p className="muted">Brak historii.</p>
+        ) : (
+          history.map((booking) => (
+            <div key={booking.id} className="muted">
+              {booking.startDate} → {booking.endDate} · {booking.status}
             </div>
           ))
         )}

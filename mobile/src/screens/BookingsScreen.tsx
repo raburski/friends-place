@@ -16,19 +16,31 @@ export function BookingsScreen() {
   const { session } = useSession();
   const [myStays, setMyStays] = useState<Booking[]>([]);
   const [atMyPlaces, setAtMyPlaces] = useState<Booking[]>([]);
+  const [history, setHistory] = useState<Booking[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
       return;
     }
-    apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
-      "/api/bookings",
-      session.token
-    )
-      .then((payload) => {
-        setMyStays((payload.data?.myStays as Booking[]) ?? []);
-        setAtMyPlaces((payload.data?.atMyPlaces as Booking[]) ?? []);
+    Promise.all([
+      apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
+        "/api/bookings",
+        session.token
+      ),
+      apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
+        "/api/bookings?history=true",
+        session.token
+      )
+    ])
+      .then(([currentPayload, historyPayload]) => {
+        setMyStays((currentPayload.data?.myStays as Booking[]) ?? []);
+        setAtMyPlaces((currentPayload.data?.atMyPlaces as Booking[]) ?? []);
+        const past = [
+          ...(historyPayload.data?.myStays as Booking[]),
+          ...(historyPayload.data?.atMyPlaces as Booking[])
+        ].filter((booking) => ["canceled", "declined", "completed"].includes(booking.status));
+        setHistory(past);
       })
       .catch(() => setError("Nie udało się pobrać rezerwacji."));
   }, [session]);
@@ -98,6 +110,22 @@ export function BookingsScreen() {
                 </Pressable>
               </View>
             ) : null}
+          </View>
+        ))
+      )}
+      <Text style={styles.sectionTitle}>Poprzednie</Text>
+      {history.length === 0 ? (
+        <Text style={styles.subtitle}>Brak historii.</Text>
+      ) : (
+        history.map((booking) => (
+          <View key={booking.id} style={styles.card}>
+            <Text style={styles.cardTitle}>Historia</Text>
+            <Text style={styles.cardText}>
+              {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
+            </Text>
+            <Text style={[styles.cardText, styles.statusBadge, styles[`status_${booking.status}`]]}>
+              {booking.status}
+            </Text>
           </View>
         ))
       )}
