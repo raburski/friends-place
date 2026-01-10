@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { apiFetch, apiPost } from "../_components/api";
 import { Copy, Trash } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../shared/query/keys";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useFriendsQuery, useInvitesQuery } from "../../shared/query/hooks/useQueries";
+import { useRevokeInviteMutation, useUnfriendMutation } from "../../shared/query/hooks/useMutations";
 
 type Friend = { friendshipId: string; friendId: string; handle?: string; displayName?: string };
 
@@ -14,16 +14,9 @@ export default function FriendsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
-
-  const friendsQuery = useQuery({
-    queryKey: queryKeys.friends(),
-    queryFn: () => apiFetch<{ ok: boolean; data: Friend[] }>("/api/friends")
-  });
-  const invitesQuery = useQuery({
-    queryKey: queryKeys.invites(),
-    queryFn: () => apiFetch<{ ok: boolean; data: Invite[] }>("/api/invites")
-  });
+  const apiOptions = useWebApiOptions();
+  const friendsQuery = useFriendsQuery(apiOptions);
+  const invitesQuery = useInvitesQuery(apiOptions);
 
   const { friends, invites } = useMemo(() => {
     return {
@@ -37,19 +30,8 @@ export default function FriendsPage() {
     ? "Nie udało się pobrać znajomych."
     : null;
 
-  const revokeInviteMutation = useMutation({
-    mutationFn: (inviteId: string) => apiPost(`/api/invites/${inviteId}/revoke`),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.invites() });
-    }
-  });
-
-  const unfriendMutation = useMutation({
-    mutationFn: (friendId: string) => apiPost("/api/friends/unfriend", { friendId }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.friends() });
-    }
-  });
+  const revokeInviteMutation = useRevokeInviteMutation(apiOptions);
+  const unfriendMutation = useUnfriendMutation(apiOptions);
 
   const inviteUrl = (code: string) => {
     if (typeof window === "undefined") {

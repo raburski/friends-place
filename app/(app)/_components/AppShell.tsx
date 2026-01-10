@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { apiFetch, ApiError } from "./api";
+import { ApiError } from "./api";
 import { Bell, CalendarBlank, GearSix, House, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { Toaster } from "react-hot-toast";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { queryKeys } from "../../shared/query/keys";
+import { useWebApiOptions } from "./useWebApiOptions";
+import { useMeQuery, useNotificationsQuery } from "../../shared/query/hooks/useQueries";
+import { useUpdateProfileMutation } from "../../shared/query/hooks/useMutations";
 
 const links = [
   { href: "/places", label: "Miejsca", Icon: House },
@@ -49,14 +50,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
   const popoverRef = useRef<HTMLDivElement | null>(null);
-  const notificationsQuery = useQuery({
-    queryKey: queryKeys.notifications(10),
-    queryFn: () => apiFetch<{ ok: boolean; data: NotificationItem[] }>("/api/notifications?limit=10"),
+  const apiOptions = useWebApiOptions();
+  const notificationsQuery = useNotificationsQuery(10, {
+    ...apiOptions,
     enabled: notificationsOpen
   });
-  const meQuery = useQuery({
-    queryKey: queryKeys.me(),
-    queryFn: () => apiFetch<{ ok: boolean; data: { displayName?: string; handle?: string } }>("/api/me"),
+  const meQuery = useMeQuery({
+    ...apiOptions,
     enabled: status === "authenticated"
   });
 
@@ -66,13 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
   const unreadCount = notifications.filter((item) => !item.readAt).length;
 
-  const updateProfileMutation = useMutation({
-    mutationFn: () =>
-      apiFetch("/api/me", {
-        method: "PATCH",
-        body: JSON.stringify({ displayName, handle, locale: "pl" })
-      })
-  });
+  const updateProfileMutation = useUpdateProfileMutation(apiOptions);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -149,7 +143,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   setProfileSaving(true);
                   setProfileError(null);
                   try {
-                    await updateProfileMutation.mutateAsync();
+                    await updateProfileMutation.mutateAsync({ displayName, handle, locale: "pl" });
                     setProfileGateOpen(false);
                   } catch (err) {
                     if (err instanceof ApiError && err.code === "handle_taken") {

@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { apiFetch } from "../_components/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../shared/query/keys";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useBookingsQuery } from "../../shared/query/hooks/useQueries";
+import { useApproveBookingMutation, useDeclineBookingMutation } from "../../shared/query/hooks/useMutations";
 
 type Booking = {
   id: string;
@@ -19,15 +19,9 @@ type BookingsPayload = {
 };
 
 export default function BookingsPage() {
-  const queryClient = useQueryClient();
-  const currentQuery = useQuery({
-    queryKey: queryKeys.bookings("current"),
-    queryFn: () => apiFetch<{ ok: boolean; data: BookingsPayload }>("/api/bookings")
-  });
-  const historyQuery = useQuery({
-    queryKey: queryKeys.bookings("history"),
-    queryFn: () => apiFetch<{ ok: boolean; data: BookingsPayload }>("/api/bookings?history=true")
-  });
+  const apiOptions = useWebApiOptions();
+  const currentQuery = useBookingsQuery("current", apiOptions);
+  const historyQuery = useBookingsQuery("history", apiOptions);
 
   const data = currentQuery.data?.data ?? { myStays: [], atMyPlaces: [] };
   const history = useMemo(() => {
@@ -40,39 +34,8 @@ export default function BookingsPage() {
   const error =
     currentQuery.isError || historyQuery.isError ? "Nie udało się pobrać rezerwacji." : null;
 
-  const updateBookingStatus = (bookingId: string, status: string) => {
-    queryClient.setQueryData<{ ok: boolean; data: BookingsPayload } | undefined>(
-      queryKeys.bookings("current"),
-      (current) => {
-        if (!current?.data) {
-          return current;
-        }
-        return {
-          ...current,
-          data: {
-            ...current.data,
-            atMyPlaces: current.data.atMyPlaces.map((item) =>
-              item.id === bookingId ? { ...item, status } : item
-            )
-          }
-        };
-      }
-    );
-  };
-
-  const approveMutation = useMutation({
-    mutationFn: (bookingId: string) => apiFetch(`/api/bookings/${bookingId}/approve`, { method: "POST" }),
-    onSuccess: (_, bookingId) => {
-      updateBookingStatus(bookingId, "approved");
-    }
-  });
-
-  const declineMutation = useMutation({
-    mutationFn: (bookingId: string) => apiFetch(`/api/bookings/${bookingId}/decline`, { method: "POST" }),
-    onSuccess: (_, bookingId) => {
-      updateBookingStatus(bookingId, "declined");
-    }
-  });
+  const approveMutation = useApproveBookingMutation(apiOptions);
+  const declineMutation = useDeclineBookingMutation(apiOptions);
 
   const allBookings = [
     ...data.myStays.map((booking) => ({ ...booking, source: "my" as const })),

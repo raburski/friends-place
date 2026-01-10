@@ -2,9 +2,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { apiFetch } from "../_components/api";
-import { useQuery } from "@tanstack/react-query";
-import { queryKeys } from "../../shared/query/keys";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useMeQuery, usePlacesQuery } from "../../shared/query/hooks/useQueries";
 
 type Place = {
   id: string;
@@ -20,14 +19,9 @@ type Place = {
 };
 
 export default function PlacesPage() {
-  const meQuery = useQuery({
-    queryKey: queryKeys.me(),
-    queryFn: () => apiFetch<{ ok: boolean; data: { id: string } }>("/api/me")
-  });
-  const placesQuery = useQuery({
-    queryKey: queryKeys.places(),
-    queryFn: () => apiFetch<{ ok: boolean; data: Place[] }>("/api/places")
-  });
+  const apiOptions = useWebApiOptions();
+  const meQuery = useMeQuery(apiOptions);
+  const placesQuery = usePlacesQuery(apiOptions);
 
   const { places, userId } = useMemo(() => {
     return {

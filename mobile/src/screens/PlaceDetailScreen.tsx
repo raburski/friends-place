@@ -3,14 +3,25 @@ import { View, Text, StyleSheet, Pressable, Modal, TextInput, ScrollView } from 
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useSession } from "../auth/useSession";
-import { apiPost, apiPatch, apiPut, ApiError } from "../api/client";
+import { ApiError } from "../api/client";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "../utils/date";
 import { AvailabilityRange, findMatchingRange } from "../utils/availability";
 import { theme } from "../theme";
 import { useToast } from "../ui/ToastProvider";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../../shared/query/keys";
+import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
+import {
+  useAvailabilityQuery,
+  useGuidesQuery,
+  usePlaceQuery
+} from "../../../shared/query/hooks/useQueries";
+import {
+  useAddAvailabilityMutation,
+  useDeleteAvailabilityMutation,
+  useRequestBookingMutation,
+  useUpdateGuidesMutation,
+  useUpdateRulesMutation
+} from "../../../shared/query/hooks/useMutations";
 
 export type PlaceDetailProps = NativeStackScreenProps<PlacesStackParamList, "PlaceDetail">;
 
@@ -30,32 +41,11 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const [newRangeEnd, setNewRangeEnd] = useState(new Date());
   const [needsConfirm, setNeedsConfirm] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
-  const queryClient = useQueryClient();
-
-  const availabilityQuery = useQuery({
-    queryKey: queryKeys.availability(placeId),
-    queryFn: () =>
-      apiGet<{
-        ok: boolean;
-        data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
-      }>(`/api/availability/place/${placeId}`, session?.token ?? ""),
-    enabled: Boolean(session?.token && placeId)
-  });
-  const placeQuery = useQuery({
-    queryKey: queryKeys.place(placeId),
-    queryFn: () =>
-      apiGet<{ ok: boolean; data: { rules?: string | null } }>(`/api/places/${placeId}`, session?.token ?? ""),
-    enabled: Boolean(session?.token && placeId)
-  });
-  const guidesQuery = useQuery({
-    queryKey: queryKeys.guides(placeId),
-    queryFn: () =>
-      apiGet<{ ok: boolean; data: Array<{ categoryKey: string; text: string }> }>(
-        `/api/guides/${placeId}`,
-        session?.token ?? ""
-      ),
-    enabled: Boolean(session?.token && placeId)
-  });
+  const apiOptions = useMobileApiOptions();
+  const apiQueryOptions = useMobileApiQueryOptions();
+  const availabilityQuery = useAvailabilityQuery(placeId, apiQueryOptions);
+  const placeQuery = usePlaceQuery(placeId, apiQueryOptions);
+  const guidesQuery = useGuidesQuery(placeId, apiQueryOptions);
 
   useEffect(() => {
     if (availabilityQuery.data?.data) {
@@ -71,15 +61,8 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   }, [placeQuery.data]);
 
   useEffect(() => {
-    if (!guidesQuery.data?.data) {
-      return;
-    }
-    const guideMap: Record<string, string> = {};
-    guidesQuery.data.data.forEach((entry) => {
-      guideMap[entry.categoryKey] = entry.text;
-    });
-    setGuides(guideMap);
-  }, [guidesQuery.data]);
+    setGuides(guidesQuery.guidesMap);
+  }, [guidesQuery.guidesMap]);
 
   useEffect(() => {
     if (availabilityQuery.isError || placeQuery.isError || guidesQuery.isError) {
@@ -87,77 +70,11 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
     }
   }, [availabilityQuery.isError, placeQuery.isError, guidesQuery.isError, toast]);
 
-  const bookingMutation = useMutation({
-    mutationFn: () =>
-      apiPost("/api/bookings", session?.token ?? "", {
-        placeId,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
-      }),
-    onSuccess: () => {
-      toast("Prośba wysłana.", { kind: "success" });
-    },
-    onError: () => {
-      toast("Nie udało się wysłać prośby.", { kind: "error" });
-    }
-  });
-
-  const addAvailabilityMutation = useMutation({
-    mutationFn: (confirm: boolean) =>
-      apiPost("/api/availability", session?.token ?? "", {
-        placeId,
-        ranges: [
-          {
-            startDate: newRangeStart.toISOString(),
-            endDate: newRangeEnd.toISOString()
-          }
-        ],
-        confirm
-      }),
-    onSuccess: async () => {
-      toast("Dostępność dodana.", { kind: "success" });
-      setNeedsConfirm(false);
-      setConfirmVisible(false);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.availability(placeId) });
-    },
-    onError: (error) => {
-      if (error instanceof ApiError && error.status === 409) {
-        setNeedsConfirm(true);
-        setConfirmVisible(true);
-        toast("Wykryto konflikt.", { kind: "error" });
-        return;
-      }
-      toast("Nie udało się dodać dostępności.", { kind: "error" });
-    }
-  });
-
-  const deleteAvailabilityMutation = useMutation({
-    mutationFn: (rangeId: string) => apiPost(`/api/availability/${rangeId}/delete`, session?.token ?? ""),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.availability(placeId) });
-    },
-    onError: () => {
-      toast("Nie udało się usunąć terminu.", { kind: "error" });
-    }
-  });
-
-  const rulesMutation = useMutation({
-    mutationFn: () => apiPatch(`/api/places/${placeId}`, session?.token ?? "", { rules }),
-    onSuccess: () => toast("Zasady zapisane.", { kind: "success" }),
-    onError: () => toast("Nie udało się zapisać zasad.", { kind: "error" })
-  });
-
-  const guidesMutation = useMutation({
-    mutationFn: () => {
-      const entries = GUIDE_LABELS.map((item) => ({
-        categoryKey: item.key,
-        text: guides[item.key] ?? ""
-      }));
-      return apiPut(`/api/guides/${placeId}`, session?.token ?? "", { entries });
-    },
-    onSuccess: () => toast("Przewodnik zapisany.", { kind: "success" }),
-    onError: () => toast("Nie udało się zapisać przewodnika.", { kind: "error" })
-  });
+  const bookingMutation = useRequestBookingMutation(apiOptions);
+  const addAvailabilityMutation = useAddAvailabilityMutation(apiOptions);
+  const deleteAvailabilityMutation = useDeleteAvailabilityMutation(apiOptions);
+  const rulesMutation = useUpdateRulesMutation(apiOptions);
+  const guidesMutation = useUpdateGuidesMutation(apiOptions);
 
   return (
     <View style={styles.safeArea}>
@@ -188,7 +105,17 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                     setAvailabilityHint("Wybrany termin nie mieści się w dostępności.");
                     return;
                   }
-                  bookingMutation.mutate();
+                  bookingMutation.mutate(
+                    {
+                      placeId,
+                      startDate: startDate.toISOString(),
+                      endDate: endDate.toISOString()
+                    },
+                    {
+                      onSuccess: () => toast("Prośba wysłana.", { kind: "success" }),
+                      onError: () => toast("Nie udało się wysłać prośby.", { kind: "error" })
+                    }
+                  );
                 } catch {
                   toast("Nie udało się wysłać prośby.", { kind: "error" });
                 }
@@ -235,7 +162,30 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                       toast("Brak sesji.", { kind: "error" });
                       return;
                     }
-                    addAvailabilityMutation.mutate(needsConfirm);
+                    addAvailabilityMutation.mutate(
+                      {
+                        placeId,
+                        startDate: newRangeStart.toISOString(),
+                        endDate: newRangeEnd.toISOString(),
+                        confirm: needsConfirm
+                      },
+                      {
+                        onSuccess: () => {
+                          toast("Dostępność dodana.", { kind: "success" });
+                          setNeedsConfirm(false);
+                          setConfirmVisible(false);
+                        },
+                        onError: (error) => {
+                          if (error instanceof ApiError && error.status === 409) {
+                            setNeedsConfirm(true);
+                            setConfirmVisible(true);
+                            toast("Wykryto konflikt.", { kind: "error" });
+                            return;
+                          }
+                          toast("Nie udało się dodać dostępności.", { kind: "error" });
+                        }
+                      }
+                    );
                   }}
                 >
                   <Text style={styles.buttonText}>Zapisz dostępność</Text>
@@ -272,7 +222,12 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                       style={styles.deleteButton}
                       onPress={async () => {
                         if (!session) return;
-                        deleteAvailabilityMutation.mutate(range.id);
+                        deleteAvailabilityMutation.mutate(
+                          { rangeId: range.id, placeId },
+                          {
+                            onError: () => toast("Nie udało się usunąć terminu.", { kind: "error" })
+                          }
+                        );
                       }}
                     >
                       <Text style={styles.deleteButtonText}>Usuń</Text>
@@ -300,7 +255,13 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                 style={styles.button}
                 onPress={async () => {
                   if (!session) return;
-                  rulesMutation.mutate();
+                  rulesMutation.mutate(
+                    { placeId, rules },
+                    {
+                      onSuccess: () => toast("Zasady zapisane.", { kind: "success" }),
+                      onError: () => toast("Nie udało się zapisać zasad.", { kind: "error" })
+                    }
+                  );
                 }}
               >
                 <Text style={styles.buttonText}>Zapisz zasady</Text>
@@ -338,7 +299,19 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
               style={styles.button}
               onPress={async () => {
                 if (!session) return;
-                guidesMutation.mutate();
+                guidesMutation.mutate(
+                  {
+                    placeId,
+                    entries: GUIDE_LABELS.map((item) => ({
+                      categoryKey: item.key,
+                      text: guides[item.key] ?? ""
+                    }))
+                  },
+                  {
+                    onSuccess: () => toast("Przewodnik zapisany.", { kind: "success" }),
+                    onError: () => toast("Nie udało się zapisać przewodnika.", { kind: "error" })
+                  }
+                );
               }}
             >
               <Text style={styles.buttonText}>Zapisz przewodnik</Text>
@@ -367,7 +340,22 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                 style={styles.button}
                 onPress={async () => {
                   if (!session) return;
-                  addAvailabilityMutation.mutate(true);
+                  addAvailabilityMutation.mutate(
+                    {
+                      placeId,
+                      startDate: newRangeStart.toISOString(),
+                      endDate: newRangeEnd.toISOString(),
+                      confirm: true
+                    },
+                    {
+                      onSuccess: () => {
+                        toast("Dostępność dodana.", { kind: "success" });
+                        setConfirmVisible(false);
+                        setNeedsConfirm(false);
+                      },
+                      onError: () => toast("Nie udało się dodać dostępności.", { kind: "error" })
+                    }
+                  );
                 }}
               >
                 <Text style={styles.buttonText}>Dodaj mimo to</Text>

@@ -6,6 +6,7 @@ export const queryKeys = {
   guides: (placeId: string) => ["guides", placeId] as const,
   bookings: (scope: "current" | "history") => ["bookings", scope] as const,
   friends: () => ["friends"] as const,
+  friendRequests: () => ["friendRequests"] as const,
   invites: () => ["invites"] as const,
   notifications: (limit: number) => ["notifications", limit] as const
 };

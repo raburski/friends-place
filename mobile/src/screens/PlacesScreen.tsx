@@ -1,67 +1,37 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { useSession } from "../auth/useSession";
-import { apiGet } from "../api/client";
+import { useMobileApiQueryOptions } from "../api/useMobileApiOptions";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../theme";
+import { useMeQuery, usePlacesQuery } from "../../../shared/query/hooks/useQueries";
 
 type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "PlacesList">;
 
 export function PlacesScreen() {
   const navigation = useNavigation<PlacesNav>();
-  const { session } = useSession();
-  const [places, setPlaces] = useState<
-    Array<{ id: string; ownerId: string; name: string; address: string; lat?: number; lng?: number }>
-  >([]);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const apiQueryOptions = useMobileApiQueryOptions();
+  const meQuery = useMeQuery(apiQueryOptions);
+  const placesQuery = usePlacesQuery(apiQueryOptions);
 
-  const loadData = useCallback(
-    async (showSpinner: boolean) => {
-      if (!session) {
-        return;
-      }
-      if (showSpinner) {
-        setLoading(true);
-      }
-      setError(null);
-      try {
-        const [mePayload, placesPayload] = await Promise.all([
-          apiGet<{ ok: boolean; data: { id: string } }>("/api/me", session.token),
-          apiGet<
-            {
-              ok: boolean;
-              data: Array<{ id: string; ownerId: string; name: string; address: string; lat?: number; lng?: number }>;
-            }
-          >("/api/places", session.token)
-        ]);
-        setUserId(mePayload.data?.id ?? null);
-        setPlaces(placesPayload.data ?? []);
-      } catch {
-        setError("Nie udało się pobrać miejsc.");
-      } finally {
-        if (showSpinner) {
-          setLoading(false);
-        }
-      }
-    },
-    [session]
+  const places = useMemo(
+    () =>
+      (placesQuery.data?.data ??
+        []) as Array<{ id: string; ownerId: string; name: string; address: string; lat?: number; lng?: number }>,
+    [placesQuery.data]
   );
-
-  useEffect(() => {
-    void loadData(true);
-  }, [loadData]);
+  const userId = meQuery.data?.data?.id ?? null;
+  const loading = meQuery.isLoading || placesQuery.isLoading;
+  const error = meQuery.isError || placesQuery.isError ? "Nie udało się pobrać miejsc." : null;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadData(false);
+    await Promise.all([meQuery.refetch(), placesQuery.refetch()]);
     setRefreshing(false);
-  }, [loadData]);
+  }, [meQuery, placesQuery]);
 
   const myPlaces = userId ? places.filter((place) => place.ownerId === userId) : [];
   const friendPlaces = userId ? places.filter((place) => place.ownerId !== userId) : [];

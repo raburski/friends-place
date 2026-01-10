@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, ApiError } from "../_components/api";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { queryKeys } from "../../shared/query/keys";
+import { ApiError } from "../_components/api";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useMeQuery } from "../../shared/query/hooks/useQueries";
+import { useUpdateProfileMutation } from "../../shared/query/hooks/useMutations";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<{ displayName?: string; handle?: string } | null>(null);
@@ -12,18 +13,9 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [needsProfile, setNeedsProfile] = useState(false);
 
-  const meQuery = useQuery({
-    queryKey: queryKeys.me(),
-    queryFn: () => apiFetch<{ ok: boolean; data: { displayName?: string; handle?: string } }>("/api/me")
-  });
-
-  const updateProfileMutation = useMutation({
-    mutationFn: () =>
-      apiFetch("/api/me", {
-        method: "PATCH",
-        body: JSON.stringify({ displayName, handle, locale: "pl" })
-      })
-  });
+  const apiOptions = useWebApiOptions();
+  const meQuery = useMeQuery(apiOptions);
+  const updateProfileMutation = useUpdateProfileMutation(apiOptions);
 
   useEffect(() => {
     if (meQuery.isError) {
@@ -82,7 +74,7 @@ export default function ProfilePage() {
               <button
                 onClick={async () => {
                   try {
-                    await updateProfileMutation.mutateAsync();
+                    await updateProfileMutation.mutateAsync({ displayName, handle, locale: "pl" });
                     setNeedsProfile(false);
                     await meQuery.refetch();
                   } catch {

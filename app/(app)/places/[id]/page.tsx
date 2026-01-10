@@ -2,10 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch } from "../../_components/api";
 import toast from "react-hot-toast";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../../shared/query/keys";
+import { useWebApiOptions } from "../../_components/useWebApiOptions";
+import {
+  useAvailabilityQuery,
+  useGuidesQuery,
+  usePlaceQuery
+} from "../../../shared/query/hooks/useQueries";
+import {
+  useAddAvailabilityMutation,
+  useRequestBookingMutation,
+  useUpdateGuidesMutation,
+  useUpdateRulesMutation
+} from "../../../shared/query/hooks/useMutations";
 
 const GUIDE_LABELS = [
   { key: "access", label: "Jak się dostać" },
@@ -24,8 +33,6 @@ type Place = {
 
 type Availability = { id: string; startDate: string; endDate: string };
 
-type GuideEntry = { categoryKey: string; text: string };
-
 export default function PlaceDetailPage() {
   const params = useParams<{ id?: string }>();
   const placeId = typeof params?.id === "string" ? params.id : "";
@@ -33,26 +40,10 @@ export default function PlaceDetailPage() {
   const [rules, setRules] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const queryClient = useQueryClient();
-
-  const placeQuery = useQuery({
-    queryKey: queryKeys.place(placeId),
-    queryFn: () => apiFetch<{ ok: boolean; data: Place }>(`/api/places/${placeId}`),
-    enabled: Boolean(placeId)
-  });
-  const availabilityQuery = useQuery({
-    queryKey: queryKeys.availability(placeId),
-    queryFn: () =>
-      apiFetch<{ ok: boolean; data: { ranges: Availability[]; isOwner: boolean } }>(
-        `/api/availability/place/${placeId}`
-      ),
-    enabled: Boolean(placeId)
-  });
-  const guidesQuery = useQuery({
-    queryKey: queryKeys.guides(placeId),
-    queryFn: () => apiFetch<{ ok: boolean; data: GuideEntry[] }>(`/api/guides/${placeId}`),
-    enabled: Boolean(placeId)
-  });
+  const apiOptions = useWebApiOptions();
+  const placeQuery = usePlaceQuery(placeId, apiOptions);
+  const availabilityQuery = useAvailabilityQuery(placeId, apiOptions);
+  const guidesQuery = useGuidesQuery(placeId, apiOptions);
 
   const place = placeQuery.data?.data ?? null;
   const availability = availabilityQuery.data?.data?.ranges ?? [];
@@ -65,81 +56,13 @@ export default function PlaceDetailPage() {
   }, [placeQuery.data]);
 
   useEffect(() => {
-    if (!guidesQuery.data?.data) {
-      return;
-    }
-    const guideMap: Record<string, string> = {};
-    guidesQuery.data.data.forEach((entry) => {
-      guideMap[entry.categoryKey] = entry.text;
-    });
-    setGuides(guideMap);
-  }, [guidesQuery.data]);
+    setGuides(guidesQuery.guidesMap);
+  }, [guidesQuery.guidesMap]);
 
-  const bookingMutation = useMutation({
-    mutationFn: () =>
-      apiFetch("/api/bookings", {
-        method: "POST",
-        body: JSON.stringify({ placeId, startDate, endDate })
-      }),
-    onSuccess: () => {
-      toast.success("Prośba wysłana.");
-    },
-    onError: () => {
-      toast.error("Nie udało się wysłać prośby.");
-    }
-  });
-
-  const addAvailabilityMutation = useMutation({
-    mutationFn: () =>
-      apiFetch("/api/availability", {
-        method: "POST",
-        body: JSON.stringify({
-          placeId,
-          ranges: [{ startDate, endDate }]
-        })
-      }),
-    onSuccess: async () => {
-      toast.success("Dostępność dodana.");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.availability(placeId) });
-    },
-    onError: () => {
-      toast.error("Nie udało się dodać dostępności.");
-    }
-  });
-
-  const rulesMutation = useMutation({
-    mutationFn: () =>
-      apiFetch(`/api/places/${placeId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ rules })
-      }),
-    onSuccess: async () => {
-      toast.success("Zasady zapisane.");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) });
-    },
-    onError: () => {
-      toast.error("Nie udało się zapisać zasad.");
-    }
-  });
-
-  const guidesMutation = useMutation({
-    mutationFn: () => {
-      const entries = GUIDE_LABELS.map((item) => ({
-        categoryKey: item.key,
-        text: guides[item.key] ?? ""
-      }));
-      return apiFetch(`/api/guides/${placeId}`, {
-        method: "PUT",
-        body: JSON.stringify({ entries })
-      });
-    },
-    onSuccess: () => {
-      toast.success("Przewodnik zapisany.");
-    },
-    onError: () => {
-      toast.error("Nie udało się zapisać przewodnika.");
-    }
-  });
+  const bookingMutation = useRequestBookingMutation(apiOptions);
+  const addAvailabilityMutation = useAddAvailabilityMutation(apiOptions);
+  const rulesMutation = useUpdateRulesMutation(apiOptions);
+  const guidesMutation = useUpdateGuidesMutation(apiOptions);
 
   useEffect(() => {
     if (placeQuery.isError || availabilityQuery.isError || guidesQuery.isError) {
@@ -165,7 +88,17 @@ export default function PlaceDetailPage() {
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
             />
-            <button onClick={() => bookingMutation.mutate()}>
+            <button
+              onClick={() =>
+                bookingMutation.mutate(
+                  { placeId, startDate, endDate },
+                  {
+                    onSuccess: () => toast.success("Prośba wysłana."),
+                    onError: () => toast.error("Nie udało się wysłać prośby.")
+                  }
+                )
+              }
+            >
               Wyślij
             </button>
           </div>
@@ -186,7 +119,17 @@ export default function PlaceDetailPage() {
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
             />
-            <button onClick={() => addAvailabilityMutation.mutate()}>
+            <button
+              onClick={() =>
+                addAvailabilityMutation.mutate(
+                  { placeId, startDate, endDate },
+                  {
+                    onSuccess: () => toast.success("Dostępność dodana."),
+                    onError: () => toast.error("Nie udało się dodać dostępności.")
+                  }
+                )
+              }
+            >
               Zapisz
             </button>
           </div>
@@ -211,7 +154,17 @@ export default function PlaceDetailPage() {
         {isOwner ? (
           <div style={{ display: "grid", gap: 12 }}>
             <textarea value={rules} onChange={(event) => setRules(event.target.value)} rows={4} />
-            <button onClick={() => rulesMutation.mutate()}>
+            <button
+              onClick={() =>
+                rulesMutation.mutate(
+                  { placeId, rules },
+                  {
+                    onSuccess: () => toast.success("Zasady zapisane."),
+                    onError: () => toast.error("Nie udało się zapisać zasad.")
+                  }
+                )
+              }
+            >
               Zapisz zasady
             </button>
           </div>
@@ -242,7 +195,23 @@ export default function PlaceDetailPage() {
           </div>
         ))}
         {isOwner ? (
-          <button onClick={() => guidesMutation.mutate()}>
+          <button
+            onClick={() =>
+              guidesMutation.mutate(
+                {
+                  placeId,
+                  entries: GUIDE_LABELS.map((item) => ({
+                    categoryKey: item.key,
+                    text: guides[item.key] ?? ""
+                  }))
+                },
+                {
+                  onSuccess: () => toast.success("Przewodnik zapisany."),
+                  onError: () => toast.error("Nie udało się zapisać przewodnika.")
+                }
+              )
+            }
+          >
             Zapisz przewodnik
           </button>
         ) : null}

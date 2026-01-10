@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { apiFetch, apiPost } from "../_components/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../shared/query/keys";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useNotificationsQuery } from "../../shared/query/hooks/useQueries";
+import { useMarkNotificationsReadMutation } from "../../shared/query/hooks/useMutations";
 
 const labels: Record<string, string> = {
   friend_accepted: "Zaproszenie przyjęte",
@@ -25,23 +25,15 @@ type NotificationItem = {
 };
 
 export default function NotificationsPage() {
-  const queryClient = useQueryClient();
-  const notificationsQuery = useQuery({
-    queryKey: queryKeys.notifications(50),
-    queryFn: () => apiFetch<{ ok: boolean; data: NotificationItem[] }>("/api/notifications?limit=50")
-  });
+  const apiOptions = useWebApiOptions();
+  const notificationsQuery = useNotificationsQuery(50, apiOptions);
   const notifications = useMemo(
     () => notificationsQuery.data?.data ?? [],
     [notificationsQuery.data]
   );
   const error = notificationsQuery.isError ? "Nie udało się pobrać powiadomień." : null;
 
-  const markReadMutation = useMutation({
-    mutationFn: (ids: string[]) => apiPost("/api/notifications/read", { ids }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications(50) });
-    }
-  });
+  const markReadMutation = useMarkNotificationsReadMutation(apiOptions);
 
   const unreadIds = notifications.filter((item) => !item.readAt).map((item) => item.id);
 

@@ -3,32 +3,17 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useSession } from "../auth/useSession";
-import { apiGet } from "../api/client";
 import { theme } from "../theme";
 import type { ProfileStackParamList } from "../navigation/ProfileStack";
 import { CaretRight, Gear } from "phosphor-react-native";
-import { useQuery } from "@tanstack/react-query";
-import { queryKeys } from "../../../shared/query/keys";
+import { useMobileApiQueryOptions } from "../api/useMobileApiOptions";
+import { useFriendsQuery, useMeQuery } from "../../../shared/query/hooks/useQueries";
 
 export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList, "ProfileHome">>();
-  const { session } = useSession();
-  const meQuery = useQuery({
-    queryKey: queryKeys.me(),
-    queryFn: () =>
-      apiGet<{ ok: boolean; data: { displayName?: string; handle?: string } }>("/api/me", session?.token ?? ""),
-    enabled: Boolean(session?.token)
-  });
-  const friendsQuery = useQuery({
-    queryKey: queryKeys.friends(),
-    queryFn: () =>
-      apiGet<{
-        ok: boolean;
-        data: Array<{ friendshipId: string; friendId: string; handle?: string; displayName?: string }>;
-      }>("/api/friends", session?.token ?? ""),
-    enabled: Boolean(session?.token)
-  });
+  const apiQueryOptions = useMobileApiQueryOptions();
+  const meQuery = useMeQuery(apiQueryOptions);
+  const friendsQuery = useFriendsQuery(apiQueryOptions);
 
   const profile = useMemo(() => meQuery.data?.data ?? null, [meQuery.data]);
   const friendsCount = useMemo(() => friendsQuery.data?.data?.length ?? 0, [friendsQuery.data]);
