@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { apiFetch, apiPost } from "../_components/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../shared/query/keys";
 
 const labels: Record<string, string> = {
   friend_accepted: "Zaproszenie przyjęte",
@@ -23,18 +25,23 @@ type NotificationItem = {
 };
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const notificationsQuery = useQuery({
+    queryKey: queryKeys.notifications(50),
+    queryFn: () => apiFetch<{ ok: boolean; data: NotificationItem[] }>("/api/notifications?limit=50")
+  });
+  const notifications = useMemo(
+    () => notificationsQuery.data?.data ?? [],
+    [notificationsQuery.data]
+  );
+  const error = notificationsQuery.isError ? "Nie udało się pobrać powiadomień." : null;
 
-  const refresh = () => {
-    apiFetch<{ ok: boolean; data: NotificationItem[] }>("/api/notifications?limit=50")
-      .then((payload) => setNotifications(payload.data ?? []))
-      .catch(() => setError("Nie udało się pobrać powiadomień."));
-  };
-
-  useEffect(() => {
-    refresh();
-  }, []);
+  const markReadMutation = useMutation({
+    mutationFn: (ids: string[]) => apiPost("/api/notifications/read", { ids }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications(50) });
+    }
+  });
 
   const unreadIds = notifications.filter((item) => !item.readAt).map((item) => item.id);
 
@@ -44,10 +51,7 @@ export default function NotificationsPage() {
       {error ? <p className="muted">{error}</p> : null}
       {unreadIds.length > 0 ? (
         <button
-          onClick={async () => {
-            await apiPost("/api/notifications/read", { ids: unreadIds });
-            refresh();
-          }}
+          onClick={() => markReadMutation.mutate(unreadIds)}
         >
           Oznacz jako przeczytane
         </button>

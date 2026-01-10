@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../_components/api";
+import { useMutation } from "@tanstack/react-query";
 
 type PlacePayload = {
   id: string;
@@ -13,10 +14,16 @@ export default function NewPlacePage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const createMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<{ ok: boolean; data: PlacePayload }>("/api/places", {
+        method: "POST",
+        body: JSON.stringify({ name, address })
+      })
+  });
 
-  const canSubmit = name.trim().length > 0 && address.trim().length > 0 && !saving;
+  const canSubmit = name.trim().length > 0 && address.trim().length > 0 && !createMutation.isLoading;
 
   return (
     <div>
@@ -49,22 +56,16 @@ export default function NewPlacePage() {
               if (!canSubmit) {
                 return;
               }
-              setSaving(true);
               setError(null);
               try {
-                const payload = await apiFetch<{ ok: boolean; data: PlacePayload }>("/api/places", {
-                  method: "POST",
-                  body: JSON.stringify({ name, address })
-                });
+                const payload = await createMutation.mutateAsync();
                 router.push(`/places/${payload.data.id}`);
               } catch {
                 setError("Nie udało się dodać miejsca.");
-              } finally {
-                setSaving(false);
               }
             }}
           >
-            {saving ? "Zapisywanie..." : "Dodaj miejsce"}
+            {createMutation.isLoading ? "Zapisywanie..." : "Dodaj miejsce"}
           </button>
           <button
             type="button"

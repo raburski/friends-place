@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, Pressable, Modal, TextInput, ScrollView } from 
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useSession } from "../auth/useSession";
-import { apiGet, apiPost, apiPatch, apiPut, ApiError } from "../api/client";
+import { apiPost, apiPatch, apiPut, ApiError } from "../api/client";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "../utils/date";
 import { AvailabilityRange, findMatchingRange } from "../utils/availability";
 import { theme } from "../theme";
 import { useToast } from "../ui/ToastProvider";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../../shared/query/keys";
 
 export type PlaceDetailProps = NativeStackScreenProps<PlacesStackParamList, "PlaceDetail">;
 
@@ -28,34 +30,134 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const [newRangeEnd, setNewRangeEnd] = useState(new Date());
   const [needsConfirm, setNeedsConfirm] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    Promise.all([
+  const availabilityQuery = useQuery({
+    queryKey: queryKeys.availability(placeId),
+    queryFn: () =>
       apiGet<{
         ok: boolean;
         data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
-      }>(`/api/availability/place/${placeId}`, session.token),
-      apiGet<{ ok: boolean; data: { rules?: string | null } }>(`/api/places/${placeId}`, session.token),
+      }>(`/api/availability/place/${placeId}`, session?.token ?? ""),
+    enabled: Boolean(session?.token && placeId)
+  });
+  const placeQuery = useQuery({
+    queryKey: queryKeys.place(placeId),
+    queryFn: () =>
+      apiGet<{ ok: boolean; data: { rules?: string | null } }>(`/api/places/${placeId}`, session?.token ?? ""),
+    enabled: Boolean(session?.token && placeId)
+  });
+  const guidesQuery = useQuery({
+    queryKey: queryKeys.guides(placeId),
+    queryFn: () =>
       apiGet<{ ok: boolean; data: Array<{ categoryKey: string; text: string }> }>(
         `/api/guides/${placeId}`,
-        session.token
-      )
-    ])
-      .then(([availabilityPayload, placePayload, guidesPayload]) => {
-        setAvailability(availabilityPayload.data?.ranges ?? []);
-        setIsOwner(Boolean(availabilityPayload.data?.isOwner));
-        setRules(placePayload.data?.rules ?? "");
-        const guideMap: Record<string, string> = {};
-        (guidesPayload.data ?? []).forEach((entry) => {
-          guideMap[entry.categoryKey] = entry.text;
-        });
-        setGuides(guideMap);
-      })
-      .catch(() => toast("Nie udało się pobrać danych miejsca.", { kind: "error" }));
-  }, [session, placeId]);
+        session?.token ?? ""
+      ),
+    enabled: Boolean(session?.token && placeId)
+  });
+
+  useEffect(() => {
+    if (availabilityQuery.data?.data) {
+      setAvailability(availabilityQuery.data.data.ranges ?? []);
+      setIsOwner(Boolean(availabilityQuery.data.data.isOwner));
+    }
+  }, [availabilityQuery.data]);
+
+  useEffect(() => {
+    if (placeQuery.data?.data) {
+      setRules(placeQuery.data.data.rules ?? "");
+    }
+  }, [placeQuery.data]);
+
+  useEffect(() => {
+    if (!guidesQuery.data?.data) {
+      return;
+    }
+    const guideMap: Record<string, string> = {};
+    guidesQuery.data.data.forEach((entry) => {
+      guideMap[entry.categoryKey] = entry.text;
+    });
+    setGuides(guideMap);
+  }, [guidesQuery.data]);
+
+  useEffect(() => {
+    if (availabilityQuery.isError || placeQuery.isError || guidesQuery.isError) {
+      toast("Nie udało się pobrać danych miejsca.", { kind: "error" });
+    }
+  }, [availabilityQuery.isError, placeQuery.isError, guidesQuery.isError, toast]);
+
+  const bookingMutation = useMutation({
+    mutationFn: () =>
+      apiPost("/api/bookings", session?.token ?? "", {
+        placeId,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      }),
+    onSuccess: () => {
+      toast("Prośba wysłana.", { kind: "success" });
+    },
+    onError: () => {
+      toast("Nie udało się wysłać prośby.", { kind: "error" });
+    }
+  });
+
+  const addAvailabilityMutation = useMutation({
+    mutationFn: (confirm: boolean) =>
+      apiPost("/api/availability", session?.token ?? "", {
+        placeId,
+        ranges: [
+          {
+            startDate: newRangeStart.toISOString(),
+            endDate: newRangeEnd.toISOString()
+          }
+        ],
+        confirm
+      }),
+    onSuccess: async () => {
+      toast("Dostępność dodana.", { kind: "success" });
+      setNeedsConfirm(false);
+      setConfirmVisible(false);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.availability(placeId) });
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        setNeedsConfirm(true);
+        setConfirmVisible(true);
+        toast("Wykryto konflikt.", { kind: "error" });
+        return;
+      }
+      toast("Nie udało się dodać dostępności.", { kind: "error" });
+    }
+  });
+
+  const deleteAvailabilityMutation = useMutation({
+    mutationFn: (rangeId: string) => apiPost(`/api/availability/${rangeId}/delete`, session?.token ?? ""),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.availability(placeId) });
+    },
+    onError: () => {
+      toast("Nie udało się usunąć terminu.", { kind: "error" });
+    }
+  });
+
+  const rulesMutation = useMutation({
+    mutationFn: () => apiPatch(`/api/places/${placeId}`, session?.token ?? "", { rules }),
+    onSuccess: () => toast("Zasady zapisane.", { kind: "success" }),
+    onError: () => toast("Nie udało się zapisać zasad.", { kind: "error" })
+  });
+
+  const guidesMutation = useMutation({
+    mutationFn: () => {
+      const entries = GUIDE_LABELS.map((item) => ({
+        categoryKey: item.key,
+        text: guides[item.key] ?? ""
+      }));
+      return apiPut(`/api/guides/${placeId}`, session?.token ?? "", { entries });
+    },
+    onSuccess: () => toast("Przewodnik zapisany.", { kind: "success" }),
+    onError: () => toast("Nie udało się zapisać przewodnika.", { kind: "error" })
+  });
 
   return (
     <View style={styles.safeArea}>
@@ -86,12 +188,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                     setAvailabilityHint("Wybrany termin nie mieści się w dostępności.");
                     return;
                   }
-                  await apiPost("/api/bookings", session.token, {
-                    placeId,
-                    startDate: startDate.toISOString(),
-                    endDate: endDate.toISOString()
-                  });
-                  toast("Prośba wysłana.", { kind: "success" });
+                  bookingMutation.mutate();
                 } catch {
                   toast("Nie udało się wysłać prośby.", { kind: "error" });
                 }
@@ -138,34 +235,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                       toast("Brak sesji.", { kind: "error" });
                       return;
                     }
-                    try {
-                      await apiPost("/api/availability", session.token, {
-                        placeId,
-                        ranges: [
-                          {
-                            startDate: newRangeStart.toISOString(),
-                            endDate: newRangeEnd.toISOString()
-                          }
-                        ],
-                        confirm: needsConfirm
-                      });
-                      toast("Dostępność dodana.", { kind: "success" });
-                      setNeedsConfirm(false);
-                      setConfirmVisible(false);
-                      const payload = await apiGet<{
-                        ok: boolean;
-                        data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
-                      }>(`/api/availability/place/${placeId}`, session.token);
-                      setAvailability(payload.data?.ranges ?? []);
-                    } catch (error) {
-                      if (error instanceof ApiError && error.status === 409) {
-                        setNeedsConfirm(true);
-                        setConfirmVisible(true);
-                        toast("Wykryto konflikt.", { kind: "error" });
-                        return;
-                      }
-                      toast("Nie udało się dodać dostępności.", { kind: "error" });
-                    }
+                    addAvailabilityMutation.mutate(needsConfirm);
                   }}
                 >
                   <Text style={styles.buttonText}>Zapisz dostępność</Text>
@@ -202,13 +272,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                       style={styles.deleteButton}
                       onPress={async () => {
                         if (!session) return;
-                        try {
-                          await apiPost(`/api/availability/${range.id}/delete`, session.token);
-                        } catch {
-                          toast("Nie udało się usunąć terminu.", { kind: "error" });
-                          return;
-                        }
-                        setAvailability((current) => current.filter((item) => item.id !== range.id));
+                        deleteAvailabilityMutation.mutate(range.id);
                       }}
                     >
                       <Text style={styles.deleteButtonText}>Usuń</Text>
@@ -236,12 +300,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                 style={styles.button}
                 onPress={async () => {
                   if (!session) return;
-                  try {
-                    await apiPatch(`/api/places/${placeId}`, session.token, { rules });
-                    toast("Zasady zapisane.", { kind: "success" });
-                  } catch {
-                    toast("Nie udało się zapisać zasad.", { kind: "error" });
-                  }
+                  rulesMutation.mutate();
                 }}
               >
                 <Text style={styles.buttonText}>Zapisz zasady</Text>
@@ -279,16 +338,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
               style={styles.button}
               onPress={async () => {
                 if (!session) return;
-                try {
-                  const entries = GUIDE_LABELS.map((item) => ({
-                    categoryKey: item.key,
-                    text: guides[item.key] ?? ""
-                  }));
-                  await apiPut(`/api/guides/${placeId}`, session.token, { entries });
-                  toast("Przewodnik zapisany.", { kind: "success" });
-                } catch {
-                  toast("Nie udało się zapisać przewodnika.", { kind: "error" });
-                }
+                guidesMutation.mutate();
               }}
             >
               <Text style={styles.buttonText}>Zapisz przewodnik</Text>
@@ -317,28 +367,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                 style={styles.button}
                 onPress={async () => {
                   if (!session) return;
-                  try {
-                    await apiPost("/api/availability", session.token, {
-                      placeId,
-                      ranges: [
-                        {
-                          startDate: newRangeStart.toISOString(),
-                          endDate: newRangeEnd.toISOString()
-                        }
-                      ],
-                      confirm: true
-                    });
-                    toast("Dostępność dodana.", { kind: "success" });
-                    setConfirmVisible(false);
-                    setNeedsConfirm(false);
-                    const payload = await apiGet<{
-                      ok: boolean;
-                      data: { ranges: Array<{ id: string; startDate: string; endDate: string }>; isOwner: boolean };
-                    }>(`/api/availability/place/${placeId}`, session.token);
-                    setAvailability(payload.data?.ranges ?? []);
-                  } catch {
-                    toast("Nie udało się dodać dostępności.", { kind: "error" });
-                  }
+                  addAvailabilityMutation.mutate(true);
                 }}
               >
                 <Text style={styles.buttonText}>Dodaj mimo to</Text>

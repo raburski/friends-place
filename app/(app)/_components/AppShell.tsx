@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, ApiError } from "./api";
 import { Bell, CalendarBlank, GearSix, House, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { Toaster } from "react-hot-toast";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryKeys } from "../../shared/query/keys";
 
 const links = [
   { href: "/places", label: "Miejsca", Icon: House },
@@ -38,7 +40,6 @@ const notificationLabels: Record<string, string> = {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { status } = useSession();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [notificationsActive, setNotificationsActive] = useState(false);
@@ -48,34 +49,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const notificationsQuery = useQuery({
+    queryKey: queryKeys.notifications(10),
+    queryFn: () => apiFetch<{ ok: boolean; data: NotificationItem[] }>("/api/notifications?limit=10"),
+    enabled: notificationsOpen
+  });
+  const meQuery = useQuery({
+    queryKey: queryKeys.me(),
+    queryFn: () => apiFetch<{ ok: boolean; data: { displayName?: string; handle?: string } }>("/api/me"),
+    enabled: status === "authenticated"
+  });
+
+  const notifications = useMemo(
+    () => notificationsQuery.data?.data ?? [],
+    [notificationsQuery.data]
+  );
   const unreadCount = notifications.filter((item) => !item.readAt).length;
 
-  useEffect(() => {
-    if (!notificationsOpen) {
-      return;
-    }
-    apiFetch<{ ok: boolean; data: NotificationItem[] }>("/api/notifications?limit=10")
-      .then((payload) => setNotifications(payload.data ?? []))
-      .catch(() => setNotifications([]));
-  }, [notificationsOpen]);
+  const updateProfileMutation = useMutation({
+    mutationFn: () =>
+      apiFetch("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify({ displayName, handle, locale: "pl" })
+      })
+  });
 
   useEffect(() => {
     if (status !== "authenticated") {
       setProfileGateOpen(false);
       return;
     }
-    apiFetch<{ ok: boolean; data: { displayName?: string; handle?: string } }>("/api/me")
-      .then((payload) => {
-        const name = payload.data?.displayName ?? "";
-        const nextHandle = payload.data?.handle ?? "";
-        setDisplayName(name);
-        setHandle(nextHandle);
-        setProfileGateOpen(!(name && nextHandle));
-      })
-      .catch(() => {
-        setProfileGateOpen(false);
-      });
-  }, [status]);
+    if (meQuery.data?.data) {
+      const name = meQuery.data.data.displayName ?? "";
+      const nextHandle = meQuery.data.data.handle ?? "";
+      setDisplayName(name);
+      setHandle(nextHandle);
+      setProfileGateOpen(!(name && nextHandle));
+    }
+    if (meQuery.isError) {
+      setProfileGateOpen(false);
+    }
+  }, [status, meQuery.data, meQuery.isError]);
 
   useEffect(() => {
     if (notificationsOpen) {
@@ -135,10 +149,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   setProfileSaving(true);
                   setProfileError(null);
                   try {
-                    await apiFetch("/api/me", {
-                      method: "PATCH",
-                      body: JSON.stringify({ displayName, handle, locale: "pl" })
-                    });
+                    await updateProfileMutation.mutateAsync();
                     setProfileGateOpen(false);
                   } catch (err) {
                     if (err instanceof ApiError && err.code === "handle_taken") {

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "../auth/useSession";
 import { apiGet, apiPost } from "../api/client";
@@ -20,22 +20,29 @@ export function BookingsScreen() {
   const [atMyPlaces, setAtMyPlaces] = useState<Booking[]>([]);
   const [history, setHistory] = useState<Booking[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    Promise.all([
-      apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
-        "/api/bookings",
-        session.token
-      ),
-      apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
-        "/api/bookings?history=true",
-        session.token
-      )
-    ])
-      .then(([currentPayload, historyPayload]) => {
+  const loadData = useCallback(
+    async (showSpinner: boolean) => {
+      if (!session) {
+        return;
+      }
+      if (showSpinner) {
+        setLoading(true);
+      }
+      setError(null);
+      try {
+        const [currentPayload, historyPayload] = await Promise.all([
+          apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
+            "/api/bookings",
+            session.token
+          ),
+          apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
+            "/api/bookings?history=true",
+            session.token
+          )
+        ]);
         setMyStays((currentPayload.data?.myStays as Booking[]) ?? []);
         setAtMyPlaces((currentPayload.data?.atMyPlaces as Booking[]) ?? []);
         const past = [
@@ -43,17 +50,38 @@ export function BookingsScreen() {
           ...(historyPayload.data?.atMyPlaces as Booking[])
         ].filter((booking) => ["canceled", "declined", "completed"].includes(booking.status));
         setHistory(past);
-      })
-      .catch(() => setError("Nie udało się pobrać rezerwacji."));
-  }, [session]);
+      } catch {
+        setError("Nie udało się pobrać rezerwacji.");
+      } finally {
+        if (showSpinner) {
+          setLoading(false);
+        }
+      }
+    },
+    [session]
+  );
+
+  useEffect(() => {
+    void loadData(true);
+  }, [loadData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData(false);
+    setRefreshing(false);
+  }, [loadData]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={styles.headerRow}>
           <Text style={styles.title}>Rezerwacje</Text>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {loading ? <Text style={styles.muted}>Ładowanie...</Text> : null}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Moje pobyty</Text>
           {myStays.length === 0 ? (

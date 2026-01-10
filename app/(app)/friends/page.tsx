@@ -1,46 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch, apiPost, ApiError } from "../_components/api";
+import { useMemo, useState } from "react";
+import { apiFetch, apiPost } from "../_components/api";
 import { Copy, Trash } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../shared/query/keys";
 
 type Friend = { friendshipId: string; friendId: string; handle?: string; displayName?: string };
 
 type Invite = { id: string; code: string; type: string; revokedAt?: string | null };
 
 export default function FriendsPage() {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const refresh = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [friendsPayload, invitesPayload] = await Promise.all([
-        apiFetch<{ ok: boolean; data: Friend[] }>("/api/friends"),
-        apiFetch<{ ok: boolean; data: Invite[] }>("/api/invites")
-      ]);
-      setFriends(friendsPayload.data ?? []);
-      setInvites(invitesPayload.data ?? []);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(`Nie udało się pobrać znajomych. (${err.code ?? err.status})`);
-      } else {
-        setError("Nie udało się pobrać znajomych.");
-      }
-    } finally {
-      setLoading(false);
+  const friendsQuery = useQuery({
+    queryKey: queryKeys.friends(),
+    queryFn: () => apiFetch<{ ok: boolean; data: Friend[] }>("/api/friends")
+  });
+  const invitesQuery = useQuery({
+    queryKey: queryKeys.invites(),
+    queryFn: () => apiFetch<{ ok: boolean; data: Invite[] }>("/api/invites")
+  });
+
+  const { friends, invites } = useMemo(() => {
+    return {
+      friends: friendsQuery.data?.data ?? [],
+      invites: invitesQuery.data?.data ?? []
+    };
+  }, [friendsQuery.data, invitesQuery.data]);
+
+  const loading = friendsQuery.isLoading || invitesQuery.isLoading;
+  const error = friendsQuery.isError || invitesQuery.isError
+    ? "Nie udało się pobrać znajomych."
+    : null;
+
+  const revokeInviteMutation = useMutation({
+    mutationFn: (inviteId: string) => apiPost(`/api/invites/${inviteId}/revoke`),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.invites() });
     }
-  };
+  });
 
-  useEffect(() => {
-    refresh();
-  }, []);
+  const unfriendMutation = useMutation({
+    mutationFn: (friendId: string) => apiPost("/api/friends/unfriend", { friendId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.friends() });
+    }
+  });
 
   const inviteUrl = (code: string) => {
     if (typeof window === "undefined") {
@@ -145,9 +154,11 @@ export default function FriendsPage() {
               </button>
               <button
                 onClick={async () => {
-                  await apiPost(`/api/invites/${revokeId}/revoke`);
+                  if (!revokeId) {
+                    return;
+                  }
+                  await revokeInviteMutation.mutateAsync(revokeId);
                   setRevokeId(null);
-                  refresh();
                 }}
               >
                 Wycofaj
@@ -167,9 +178,11 @@ export default function FriendsPage() {
               </button>
               <button
                 onClick={async () => {
-                  await apiPost("/api/friends/unfriend", { friendId: removeId });
+                  if (!removeId) {
+                    return;
+                  }
+                  await unfriendMutation.mutateAsync(removeId);
                   setRemoveId(null);
-                  refresh();
                 }}
               >
                 Usuń

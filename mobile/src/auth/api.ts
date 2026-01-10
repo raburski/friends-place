@@ -1,73 +1,46 @@
 import { authHeaders, MobileSession } from "../../../shared/auth/mobile-session";
+import { requestJson } from "../../../shared/api/request";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+import { API_BASE_URL } from "../config";
 
 export async function exchangeSession(): Promise<MobileSession> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/mobile/exchange`, {
+  const payload = await requestJson<{ data: MobileSession }>("/api/auth/mobile/exchange", {
+    baseUrl: API_BASE_URL,
     method: "POST",
     credentials: "include"
   });
-
-  if (!response.ok) {
-    throw new Error("Exchange failed");
-  }
-
-  const payload = await response.json();
   return payload.data as MobileSession;
 }
 
 export async function refreshSession(token: string): Promise<MobileSession> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/mobile/refresh`, {
+  const payload = await requestJson<{ data: MobileSession }>("/api/auth/mobile/refresh", {
+    baseUrl: API_BASE_URL,
     method: "POST",
-    headers: {
-      ...authHeaders(token)
-    }
+    headers: authHeaders(token)
   });
-
-  if (!response.ok) {
-    throw new Error("Refresh failed");
-  }
-
-  const payload = await response.json();
   return payload.data as MobileSession;
 }
 
 export async function revokeSession(token: string) {
-  await fetch(`${API_BASE_URL}/api/auth/mobile/revoke`, {
+  await requestJson<void>("/api/auth/mobile/revoke", {
+    baseUrl: API_BASE_URL,
     method: "POST",
-    headers: {
-      ...authHeaders(token)
-    }
+    headers: authHeaders(token)
   });
 }
 
 export async function fetchMobileProfile(token: string) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/mobile`, {
-    headers: {
-      ...authHeaders(token)
-    }
+  return requestJson("/api/auth/mobile", {
+    baseUrl: API_BASE_URL,
+    headers: authHeaders(token)
   });
-
-  if (!response.ok) {
-    throw new Error("Profile fetch failed");
-  }
-
-  return response.json();
 }
 
 export async function updateProfile(token: string, data: { handle: string; displayName: string; locale?: string }) {
-  const response = await fetch(`${API_BASE_URL}/api/me`, {
+  return requestJson("/api/me", {
+    baseUrl: API_BASE_URL,
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(token)
-    },
-    body: JSON.stringify(data)
+    headers: authHeaders(token),
+    body: data
   });
-
-  if (!response.ok) {
-    throw new Error("Profile update failed");
-  }
-
-  return response.json();
 }

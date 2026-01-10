@@ -2,13 +2,14 @@ import { useState } from "react";
 import { View, Text, StyleSheet, Pressable, Modal, SafeAreaView } from "react-native";
 import { WebView } from "react-native-webview";
 import { useSession } from "../auth/useSession";
+import { API_BASE_URL } from "../config";
 
 export function AuthScreen() {
   const { setSessionData } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState(false);
 
-  const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+  const apiBase = API_BASE_URL;
 
   return (
     <View style={styles.container}>

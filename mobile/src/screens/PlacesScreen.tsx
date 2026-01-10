@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSession } from "../auth/useSession";
 import { apiGet } from "../api/client";
@@ -19,29 +19,49 @@ export function PlacesScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    Promise.all([
-      apiGet<{ ok: boolean; data: { id: string } }>("/api/me", session.token),
-      apiGet<
-        {
-          ok: boolean;
-          data: Array<{ id: string; ownerId: string; name: string; address: string; lat?: number; lng?: number }>;
-        }
-      >("/api/places", session.token)
-    ])
-      .then(([mePayload, placesPayload]) => {
+  const loadData = useCallback(
+    async (showSpinner: boolean) => {
+      if (!session) {
+        return;
+      }
+      if (showSpinner) {
+        setLoading(true);
+      }
+      setError(null);
+      try {
+        const [mePayload, placesPayload] = await Promise.all([
+          apiGet<{ ok: boolean; data: { id: string } }>("/api/me", session.token),
+          apiGet<
+            {
+              ok: boolean;
+              data: Array<{ id: string; ownerId: string; name: string; address: string; lat?: number; lng?: number }>;
+            }
+          >("/api/places", session.token)
+        ]);
         setUserId(mePayload.data?.id ?? null);
         setPlaces(placesPayload.data ?? []);
-      })
-      .catch(() => setError("Nie udało się pobrać miejsc."))
-      .finally(() => setLoading(false));
-  }, [session]);
+      } catch {
+        setError("Nie udało się pobrać miejsc.");
+      } finally {
+        if (showSpinner) {
+          setLoading(false);
+        }
+      }
+    },
+    [session]
+  );
+
+  useEffect(() => {
+    void loadData(true);
+  }, [loadData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData(false);
+    setRefreshing(false);
+  }, [loadData]);
 
   const myPlaces = userId ? places.filter((place) => place.ownerId === userId) : [];
   const friendPlaces = userId ? places.filter((place) => place.ownerId !== userId) : [];
@@ -49,7 +69,10 @@ export function PlacesScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={styles.headerRow}>
           <Text style={styles.title}>Miejsca</Text>
         </View>

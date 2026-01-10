@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../_components/api";
 import toast from "react-hot-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../../shared/query/keys";
 
 const GUIDE_LABELS = [
   { key: "access", label: "Jak się dostać" },
@@ -27,38 +29,123 @@ type GuideEntry = { categoryKey: string; text: string };
 export default function PlaceDetailPage() {
   const params = useParams<{ id?: string }>();
   const placeId = typeof params?.id === "string" ? params.id : "";
-  const [place, setPlace] = useState<Place | null>(null);
-  const [availability, setAvailability] = useState<Availability[]>([]);
-  const [isOwner, setIsOwner] = useState(false);
   const [guides, setGuides] = useState<Record<string, string>>({});
   const [rules, setRules] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!placeId) {
-      return;
-    }
-    Promise.all([
-      apiFetch<{ ok: boolean; data: Place }>(`/api/places/${placeId}`),
+  const placeQuery = useQuery({
+    queryKey: queryKeys.place(placeId),
+    queryFn: () => apiFetch<{ ok: boolean; data: Place }>(`/api/places/${placeId}`),
+    enabled: Boolean(placeId)
+  });
+  const availabilityQuery = useQuery({
+    queryKey: queryKeys.availability(placeId),
+    queryFn: () =>
       apiFetch<{ ok: boolean; data: { ranges: Availability[]; isOwner: boolean } }>(
         `/api/availability/place/${placeId}`
       ),
-      apiFetch<{ ok: boolean; data: GuideEntry[] }>(`/api/guides/${placeId}`)
-    ])
-      .then(([placePayload, availabilityPayload, guidesPayload]) => {
-        setPlace(placePayload.data);
-        setRules(placePayload.data?.rules ?? "");
-        setAvailability(availabilityPayload.data?.ranges ?? []);
-        setIsOwner(Boolean(availabilityPayload.data?.isOwner));
-        const guideMap: Record<string, string> = {};
-        guidesPayload.data?.forEach((entry) => {
-          guideMap[entry.categoryKey] = entry.text;
-        });
-        setGuides(guideMap);
-      })
-      .catch(() => toast.error("Nie udało się pobrać danych miejsca."));
-  }, [placeId]);
+    enabled: Boolean(placeId)
+  });
+  const guidesQuery = useQuery({
+    queryKey: queryKeys.guides(placeId),
+    queryFn: () => apiFetch<{ ok: boolean; data: GuideEntry[] }>(`/api/guides/${placeId}`),
+    enabled: Boolean(placeId)
+  });
+
+  const place = placeQuery.data?.data ?? null;
+  const availability = availabilityQuery.data?.data?.ranges ?? [];
+  const isOwner = Boolean(availabilityQuery.data?.data?.isOwner);
+
+  useEffect(() => {
+    if (placeQuery.data?.data) {
+      setRules(placeQuery.data.data.rules ?? "");
+    }
+  }, [placeQuery.data]);
+
+  useEffect(() => {
+    if (!guidesQuery.data?.data) {
+      return;
+    }
+    const guideMap: Record<string, string> = {};
+    guidesQuery.data.data.forEach((entry) => {
+      guideMap[entry.categoryKey] = entry.text;
+    });
+    setGuides(guideMap);
+  }, [guidesQuery.data]);
+
+  const bookingMutation = useMutation({
+    mutationFn: () =>
+      apiFetch("/api/bookings", {
+        method: "POST",
+        body: JSON.stringify({ placeId, startDate, endDate })
+      }),
+    onSuccess: () => {
+      toast.success("Prośba wysłana.");
+    },
+    onError: () => {
+      toast.error("Nie udało się wysłać prośby.");
+    }
+  });
+
+  const addAvailabilityMutation = useMutation({
+    mutationFn: () =>
+      apiFetch("/api/availability", {
+        method: "POST",
+        body: JSON.stringify({
+          placeId,
+          ranges: [{ startDate, endDate }]
+        })
+      }),
+    onSuccess: async () => {
+      toast.success("Dostępność dodana.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.availability(placeId) });
+    },
+    onError: () => {
+      toast.error("Nie udało się dodać dostępności.");
+    }
+  });
+
+  const rulesMutation = useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/places/${placeId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ rules })
+      }),
+    onSuccess: async () => {
+      toast.success("Zasady zapisane.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zapisać zasad.");
+    }
+  });
+
+  const guidesMutation = useMutation({
+    mutationFn: () => {
+      const entries = GUIDE_LABELS.map((item) => ({
+        categoryKey: item.key,
+        text: guides[item.key] ?? ""
+      }));
+      return apiFetch(`/api/guides/${placeId}`, {
+        method: "PUT",
+        body: JSON.stringify({ entries })
+      });
+    },
+    onSuccess: () => {
+      toast.success("Przewodnik zapisany.");
+    },
+    onError: () => {
+      toast.error("Nie udało się zapisać przewodnika.");
+    }
+  });
+
+  useEffect(() => {
+    if (placeQuery.isError || availabilityQuery.isError || guidesQuery.isError) {
+      toast.error("Nie udało się pobrać danych miejsca.");
+    }
+  }, [placeQuery.isError, availabilityQuery.isError, guidesQuery.isError]);
 
   return (
     <div>
@@ -78,19 +165,7 @@ export default function PlaceDetailPage() {
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
             />
-            <button
-              onClick={async () => {
-                try {
-                  await apiFetch("/api/bookings", {
-                    method: "POST",
-                    body: JSON.stringify({ placeId, startDate, endDate })
-                  });
-                  toast.success("Prośba wysłana.");
-                } catch {
-                  toast.error("Nie udało się wysłać prośby.");
-                }
-              }}
-            >
+            <button onClick={() => bookingMutation.mutate()}>
               Wyślij
             </button>
           </div>
@@ -111,27 +186,7 @@ export default function PlaceDetailPage() {
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
             />
-            <button
-              onClick={async () => {
-                try {
-                  await apiFetch("/api/availability", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      placeId,
-                      ranges: [{ startDate, endDate }]
-                    })
-                  });
-                  toast.success("Dostępność dodana.");
-                  const refreshed = await apiFetch<{
-                    ok: boolean;
-                    data: { ranges: Availability[]; isOwner: boolean };
-                  }>(`/api/availability/place/${placeId}`);
-                  setAvailability(refreshed.data?.ranges ?? []);
-                } catch {
-                  toast.error("Nie udało się dodać dostępności.");
-                }
-              }}
-            >
+            <button onClick={() => addAvailabilityMutation.mutate()}>
               Zapisz
             </button>
           </div>
@@ -156,19 +211,7 @@ export default function PlaceDetailPage() {
         {isOwner ? (
           <div style={{ display: "grid", gap: 12 }}>
             <textarea value={rules} onChange={(event) => setRules(event.target.value)} rows={4} />
-            <button
-              onClick={async () => {
-                try {
-                  await apiFetch(`/api/places/${placeId}`, {
-                    method: "PATCH",
-                    body: JSON.stringify({ rules })
-                  });
-                  toast.success("Zasady zapisane.");
-                } catch {
-                  toast.error("Nie udało się zapisać zasad.");
-                }
-              }}
-            >
+            <button onClick={() => rulesMutation.mutate()}>
               Zapisz zasady
             </button>
           </div>
@@ -199,23 +242,7 @@ export default function PlaceDetailPage() {
           </div>
         ))}
         {isOwner ? (
-          <button
-            onClick={async () => {
-              try {
-                const entries = GUIDE_LABELS.map((item) => ({
-                  categoryKey: item.key,
-                  text: guides[item.key] ?? ""
-                }));
-                await apiFetch(`/api/guides/${placeId}`, {
-                  method: "PUT",
-                  body: JSON.stringify({ entries })
-                });
-                toast.success("Przewodnik zapisany.");
-              } catch {
-                toast.error("Nie udało się zapisać przewodnika.");
-              }
-            }}
-          >
+          <button onClick={() => guidesMutation.mutate()}>
             Zapisz przewodnik
           </button>
         ) : null}

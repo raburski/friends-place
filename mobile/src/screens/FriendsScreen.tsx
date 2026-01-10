@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Share, ScrollView, Alert } from "react-native";
 import { useSession } from "../auth/useSession";
 import { apiGet, apiPost } from "../api/client";
+import { API_BASE_URL } from "../config";
 import { theme } from "../theme";
 
 export function FriendsScreen() {
@@ -99,7 +100,7 @@ export function FriendsScreen() {
                   style={styles.inviteRow}
                   onPress={async () => {
                     await Share.share({
-                      message: `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000"}/auth/invite/${invite.code}`
+                      message: `${API_BASE_URL}/auth/invite/${invite.code}`
                     });
                   }}
                 >
@@ -115,7 +116,7 @@ export function FriendsScreen() {
                       onPress={async (event) => {
                         event.stopPropagation?.();
                         await Share.share({
-                          message: `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000"}/auth/invite/${invite.code}`
+                          message: `${API_BASE_URL}/auth/invite/${invite.code}`
                         });
                       }}
                     >
