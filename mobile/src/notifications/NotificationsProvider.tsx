@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { apiGet, apiPost } from "../api/client";
-import { useSession } from "../auth/useSession";
+import { createContext, useCallback, useContext } from "react";
+import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
+import { useNotificationsQuery } from "../../../shared/query/hooks/useQueries";
+import { useMarkNotificationsReadMutation } from "../../../shared/query/hooks/useMutations";
 
 export type NotificationItem = {
   id: string;
@@ -20,38 +21,25 @@ type NotificationsContextValue = {
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
 
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
-  const { session } = useSession();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const apiOptions = useMobileApiOptions();
+  const apiQueryOptions = useMobileApiQueryOptions();
+  const notificationsQuery = useNotificationsQuery(50, apiQueryOptions);
+  const markReadMutation = useMarkNotificationsReadMutation(apiOptions);
+
+  const notifications = notificationsQuery.data?.data ?? [];
 
   const refresh = useCallback(async () => {
-    if (!session) {
-      setNotifications([]);
-      return;
-    }
-    const payload = await apiGet<{ ok: boolean; data: NotificationItem[] }>(
-      "/api/notifications?limit=50",
-      session.token
-    );
-    setNotifications(payload.data ?? []);
-  }, [session]);
+    await notificationsQuery.refetch();
+  }, [notificationsQuery]);
 
   const markAllRead = useCallback(async () => {
-    if (!session) {
-      return;
-    }
     const unreadIds = notifications.filter((item) => !item.readAt).map((item) => item.id);
     if (unreadIds.length === 0) {
       return;
     }
-    await apiPost("/api/notifications/read", session.token, { ids: unreadIds });
+    await markReadMutation.mutateAsync(unreadIds);
     await refresh();
-  }, [notifications, refresh, session]);
-
-  useEffect(() => {
-    refresh().catch(() => {
-      setNotifications([]);
-    });
-  }, [refresh]);
+  }, [markReadMutation, notifications, refresh]);
 
   const unreadCount = notifications.filter((item) => !item.readAt).length;
 

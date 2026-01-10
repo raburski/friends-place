@@ -2,9 +2,9 @@ import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useSession } from "../auth/useSession";
-import { apiPost } from "../api/client";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
+import { useMobileApiOptions } from "../api/useMobileApiOptions";
+import { useCreatePlaceMutation } from "../../../shared/query/hooks/useMutations";
 
 type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "AddPlace">;
 
@@ -15,17 +15,13 @@ type PlacePayload = {
 
 export function AddPlaceScreen() {
   const navigation = useNavigation<PlacesNav>();
-  const { session } = useSession();
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const apiOptions = useMobileApiOptions();
+  const createMutation = useCreatePlaceMutation(apiOptions);
 
-  if (!session) {
-    return null;
-  }
-
-  const canSubmit = name.trim().length > 0 && address.trim().length > 0 && !saving;
+  const canSubmit = name.trim().length > 0 && address.trim().length > 0 && !createMutation.isLoading;
 
   return (
     <View style={styles.container}>
@@ -49,23 +45,18 @@ export function AddPlaceScreen() {
           if (!canSubmit) {
             return;
           }
-          setSaving(true);
           setError(null);
           try {
-            const payload = await apiPost<{ ok: boolean; data: PlacePayload }>(
-              "/api/places",
-              session.token,
-              { name, address }
-            );
+            const payload = await createMutation.mutateAsync({ name, address });
             navigation.replace("PlaceDetail", { placeId: payload.data.id, name: payload.data.name });
           } catch {
             setError("Nie udało się dodać miejsca.");
-          } finally {
-            setSaving(false);
           }
         }}
       >
-        <Text style={styles.buttonText}>{saving ? "Zapisywanie..." : "Dodaj miejsce"}</Text>
+        <Text style={styles.buttonText}>
+          {createMutation.isLoading ? "Zapisywanie..." : "Dodaj miejsce"}
+        </Text>
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>

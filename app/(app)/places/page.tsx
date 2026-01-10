@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { apiFetch } from "../_components/api";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useMeQuery, usePlacesQuery } from "../../shared/query/hooks/useQueries";
 
 type Place = {
   id: string;
@@ -18,25 +19,19 @@ type Place = {
 };
 
 export default function PlacesPage() {
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const apiOptions = useWebApiOptions();
+  const meQuery = useMeQuery(apiOptions);
+  const placesQuery = usePlacesQuery(apiOptions);
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    Promise.all([
-      apiFetch<{ ok: boolean; data: { id: string } }>("/api/me"),
-      apiFetch<{ ok: boolean; data: Place[] }>("/api/places")
-    ])
-      .then(([mePayload, placesPayload]) => {
-        setUserId(mePayload.data?.id ?? null);
-        setPlaces(placesPayload.data ?? []);
-      })
-      .catch(() => setError("Nie udało się pobrać miejsc."))
-      .finally(() => setLoading(false));
-  }, []);
+  const { places, userId } = useMemo(() => {
+    return {
+      places: placesQuery.data?.data ?? [],
+      userId: meQuery.data?.data?.id ?? null
+    };
+  }, [meQuery.data, placesQuery.data]);
+
+  const loading = meQuery.isLoading || placesQuery.isLoading;
+  const error = meQuery.isError || placesQuery.isError ? "Nie udało się pobrać miejsc." : null;
 
   const myPlaces = userId ? places.filter((place) => place.ownerId === userId) : [];
   const friendPlaces = userId ? places.filter((place) => place.ownerId !== userId) : [];

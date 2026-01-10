@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch, apiPost } from "../_components/api";
+import { useMemo } from "react";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useNotificationsQuery } from "../../shared/query/hooks/useQueries";
+import { useMarkNotificationsReadMutation } from "../../shared/query/hooks/useMutations";
 
 const labels: Record<string, string> = {
   friend_accepted: "Zaproszenie przyjęte",
@@ -23,18 +25,15 @@ type NotificationItem = {
 };
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const apiOptions = useWebApiOptions();
+  const notificationsQuery = useNotificationsQuery(50, apiOptions);
+  const notifications = useMemo(
+    () => notificationsQuery.data?.data ?? [],
+    [notificationsQuery.data]
+  );
+  const error = notificationsQuery.isError ? "Nie udało się pobrać powiadomień." : null;
 
-  const refresh = () => {
-    apiFetch<{ ok: boolean; data: NotificationItem[] }>("/api/notifications?limit=50")
-      .then((payload) => setNotifications(payload.data ?? []))
-      .catch(() => setError("Nie udało się pobrać powiadomień."));
-  };
-
-  useEffect(() => {
-    refresh();
-  }, []);
+  const markReadMutation = useMarkNotificationsReadMutation(apiOptions);
 
   const unreadIds = notifications.filter((item) => !item.readAt).map((item) => item.id);
 
@@ -44,10 +43,7 @@ export default function NotificationsPage() {
       {error ? <p className="muted">{error}</p> : null}
       {unreadIds.length > 0 ? (
         <button
-          onClick={async () => {
-            await apiPost("/api/notifications/read", { ids: unreadIds });
-            refresh();
-          }}
+          onClick={() => markReadMutation.mutate(unreadIds)}
         >
           Oznacz jako przeczytane
         </button>

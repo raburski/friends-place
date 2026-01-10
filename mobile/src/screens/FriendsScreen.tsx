@@ -1,47 +1,31 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable, Share, ScrollView, Alert } from "react-native";
-import { useSession } from "../auth/useSession";
-import { apiGet, apiPost } from "../api/client";
+import { API_BASE_URL } from "../config";
 import { theme } from "../theme";
+import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
+import { useFriendsQuery, useInvitesQuery } from "../../../shared/query/hooks/useQueries";
+import { useRevokeInviteMutation, useUnfriendMutation } from "../../../shared/query/hooks/useMutations";
 
 export function FriendsScreen() {
-  const { session } = useSession();
-  const [friends, setFriends] = useState<
-    Array<{ friendshipId: string; friendId: string; handle?: string; displayName?: string }>
-  >([]);
-  const [requests, setRequests] = useState<Array<{ friendshipId: string; handle?: string; displayName?: string }>>(
-    []
-  );
-  const [invites, setInvites] = useState<
-    Array<{ id: string; code: string; type: string; revokedAt?: string | null }>
-  >([]);
-  const [error, setError] = useState<string | null>(null);
+  const apiOptions = useMobileApiOptions();
+  const apiQueryOptions = useMobileApiQueryOptions();
+  const friendsQuery = useFriendsQuery(apiQueryOptions);
+  const invitesQuery = useInvitesQuery(apiQueryOptions);
+  const unfriendMutation = useUnfriendMutation(apiOptions);
+  const revokeInviteMutation = useRevokeInviteMutation(apiOptions);
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    Promise.all([
-      apiGet<{
-        ok: boolean;
-        data: Array<{ friendshipId: string; friendId: string; handle?: string; displayName?: string }>;
-      }>("/api/friends", session.token),
-      apiGet<{ ok: boolean; data: Array<{ friendshipId: string; handle?: string; displayName?: string }> }>(
-        "/api/friends/requests",
-        session.token
-      ),
-      apiGet<{ ok: boolean; data: Array<{ id: string; code: string; type: string; revokedAt?: string | null }> }>(
-        "/api/invites",
-        session.token
-      )
-    ])
-      .then(([friendsPayload, pending, invitesPayload]) => {
-        setFriends(friendsPayload.data ?? []);
-        setRequests(pending.data ?? []);
-        setInvites(invitesPayload.data ?? []);
-      })
-      .catch(() => setError("Nie udało się pobrać danych."));
-  }, [session]);
+  const friends = useMemo(
+    () => friendsQuery.data?.data ?? [],
+    [friendsQuery.data]
+  ) as Array<{ friendshipId: string; friendId: string; handle?: string; displayName?: string }>;
+  const invites = useMemo(
+    () => invitesQuery.data?.data ?? [],
+    [invitesQuery.data]
+  ) as Array<{ id: string; code: string; type: string; revokedAt?: string | null }>;
+  const error =
+    friendsQuery.isError || invitesQuery.isError
+      ? "Nie udało się pobrać danych."
+      : null;
 
   return (
     <View style={styles.safeArea}>
@@ -68,11 +52,7 @@ export function FriendsScreen() {
                           text: "Usuń",
                           style: "destructive",
                           onPress: async () => {
-                            if (!session) return;
-                            await apiPost("/api/friends/unfriend", session.token, {
-                              friendId: friend.friendId
-                            });
-                            setFriends((current) => current.filter((item) => item.friendId !== friend.friendId));
+                            await unfriendMutation.mutateAsync(friend.friendId);
                           }
                         }
                       ]);
@@ -99,7 +79,7 @@ export function FriendsScreen() {
                   style={styles.inviteRow}
                   onPress={async () => {
                     await Share.share({
-                      message: `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000"}/auth/invite/${invite.code}`
+                      message: `${API_BASE_URL}/auth/invite/${invite.code}`
                     });
                   }}
                 >
@@ -115,7 +95,7 @@ export function FriendsScreen() {
                       onPress={async (event) => {
                         event.stopPropagation?.();
                         await Share.share({
-                          message: `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000"}/auth/invite/${invite.code}`
+                          message: `${API_BASE_URL}/auth/invite/${invite.code}`
                         });
                       }}
                     >
@@ -131,13 +111,7 @@ export function FriendsScreen() {
                             text: "Wycofaj",
                             style: "destructive",
                             onPress: async () => {
-                              if (!session) return;
-                              await apiPost(`/api/invites/${invite.id}/revoke`, session.token);
-                              setInvites((current) =>
-                                current.map((item) =>
-                                  item.id === invite.id ? { ...item, revokedAt: new Date().toISOString() } : item
-                                )
-                              );
+                              await revokeInviteMutation.mutateAsync(invite.id);
                             }
                           }
                         ]);

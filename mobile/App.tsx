@@ -8,6 +8,7 @@ import { SessionProvider } from "./src/auth/useSession";
 import { NotificationsProvider } from "./src/notifications/NotificationsProvider";
 import { ToastProvider } from "./src/ui/ToastProvider";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { QueryProvider } from "./src/api/QueryProvider";
 
 export default function App() {
   const [soraLoaded] = useSoraFonts({
@@ -44,14 +45,16 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SessionProvider>
-        <NotificationsProvider>
-          <ToastProvider>
-            <RootNavigator />
-            <StatusBar style="auto" />
-          </ToastProvider>
-        </NotificationsProvider>
-      </SessionProvider>
+      <QueryProvider>
+        <SessionProvider>
+          <NotificationsProvider>
+            <ToastProvider>
+              <RootNavigator />
+              <StatusBar style="auto" />
+            </ToastProvider>
+          </NotificationsProvider>
+        </SessionProvider>
+      </QueryProvider>
     </SafeAreaProvider>
   );
 }

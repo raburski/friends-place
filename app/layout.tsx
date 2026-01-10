@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Sora } from "next/font/google";
 import "./globals.css";
+import { QueryProvider } from "./_components/QueryProvider";
 
 const headingFont = Fraunces({
   subsets: ["latin"],
@@ -44,7 +45,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

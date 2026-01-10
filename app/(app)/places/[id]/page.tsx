@@ -2,8 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch } from "../../_components/api";
 import toast from "react-hot-toast";
+import { useWebApiOptions } from "../../_components/useWebApiOptions";
+import {
+  useAvailabilityQuery,
+  useGuidesQuery,
+  usePlaceQuery
+} from "../../../shared/query/hooks/useQueries";
+import {
+  useAddAvailabilityMutation,
+  useRequestBookingMutation,
+  useUpdateGuidesMutation,
+  useUpdateRulesMutation
+} from "../../../shared/query/hooks/useMutations";
 
 const GUIDE_LABELS = [
   { key: "access", label: "Jak się dostać" },
@@ -22,43 +33,42 @@ type Place = {
 
 type Availability = { id: string; startDate: string; endDate: string };
 
-type GuideEntry = { categoryKey: string; text: string };
-
 export default function PlaceDetailPage() {
   const params = useParams<{ id?: string }>();
   const placeId = typeof params?.id === "string" ? params.id : "";
-  const [place, setPlace] = useState<Place | null>(null);
-  const [availability, setAvailability] = useState<Availability[]>([]);
-  const [isOwner, setIsOwner] = useState(false);
   const [guides, setGuides] = useState<Record<string, string>>({});
   const [rules, setRules] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const apiOptions = useWebApiOptions();
+  const placeQuery = usePlaceQuery(placeId, apiOptions);
+  const availabilityQuery = useAvailabilityQuery(placeId, apiOptions);
+  const guidesQuery = useGuidesQuery(placeId, apiOptions);
+
+  const place = placeQuery.data?.data ?? null;
+  const availability = availabilityQuery.data?.data?.ranges ?? [];
+  const isOwner = Boolean(availabilityQuery.data?.data?.isOwner);
 
   useEffect(() => {
-    if (!placeId) {
-      return;
+    if (placeQuery.data?.data) {
+      setRules(placeQuery.data.data.rules ?? "");
     }
-    Promise.all([
-      apiFetch<{ ok: boolean; data: Place }>(`/api/places/${placeId}`),
-      apiFetch<{ ok: boolean; data: { ranges: Availability[]; isOwner: boolean } }>(
-        `/api/availability/place/${placeId}`
-      ),
-      apiFetch<{ ok: boolean; data: GuideEntry[] }>(`/api/guides/${placeId}`)
-    ])
-      .then(([placePayload, availabilityPayload, guidesPayload]) => {
-        setPlace(placePayload.data);
-        setRules(placePayload.data?.rules ?? "");
-        setAvailability(availabilityPayload.data?.ranges ?? []);
-        setIsOwner(Boolean(availabilityPayload.data?.isOwner));
-        const guideMap: Record<string, string> = {};
-        guidesPayload.data?.forEach((entry) => {
-          guideMap[entry.categoryKey] = entry.text;
-        });
-        setGuides(guideMap);
-      })
-      .catch(() => toast.error("Nie udało się pobrać danych miejsca."));
-  }, [placeId]);
+  }, [placeQuery.data]);
+
+  useEffect(() => {
+    setGuides(guidesQuery.guidesMap);
+  }, [guidesQuery.guidesMap]);
+
+  const bookingMutation = useRequestBookingMutation(apiOptions);
+  const addAvailabilityMutation = useAddAvailabilityMutation(apiOptions);
+  const rulesMutation = useUpdateRulesMutation(apiOptions);
+  const guidesMutation = useUpdateGuidesMutation(apiOptions);
+
+  useEffect(() => {
+    if (placeQuery.isError || availabilityQuery.isError || guidesQuery.isError) {
+      toast.error("Nie udało się pobrać danych miejsca.");
+    }
+  }, [placeQuery.isError, availabilityQuery.isError, guidesQuery.isError]);
 
   return (
     <div>
@@ -79,17 +89,15 @@ export default function PlaceDetailPage() {
               onChange={(event) => setEndDate(event.target.value)}
             />
             <button
-              onClick={async () => {
-                try {
-                  await apiFetch("/api/bookings", {
-                    method: "POST",
-                    body: JSON.stringify({ placeId, startDate, endDate })
-                  });
-                  toast.success("Prośba wysłana.");
-                } catch {
-                  toast.error("Nie udało się wysłać prośby.");
-                }
-              }}
+              onClick={() =>
+                bookingMutation.mutate(
+                  { placeId, startDate, endDate },
+                  {
+                    onSuccess: () => toast.success("Prośba wysłana."),
+                    onError: () => toast.error("Nie udało się wysłać prośby.")
+                  }
+                )
+              }
             >
               Wyślij
             </button>
@@ -112,25 +120,15 @@ export default function PlaceDetailPage() {
               onChange={(event) => setEndDate(event.target.value)}
             />
             <button
-              onClick={async () => {
-                try {
-                  await apiFetch("/api/availability", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      placeId,
-                      ranges: [{ startDate, endDate }]
-                    })
-                  });
-                  toast.success("Dostępność dodana.");
-                  const refreshed = await apiFetch<{
-                    ok: boolean;
-                    data: { ranges: Availability[]; isOwner: boolean };
-                  }>(`/api/availability/place/${placeId}`);
-                  setAvailability(refreshed.data?.ranges ?? []);
-                } catch {
-                  toast.error("Nie udało się dodać dostępności.");
-                }
-              }}
+              onClick={() =>
+                addAvailabilityMutation.mutate(
+                  { placeId, startDate, endDate },
+                  {
+                    onSuccess: () => toast.success("Dostępność dodana."),
+                    onError: () => toast.error("Nie udało się dodać dostępności.")
+                  }
+                )
+              }
             >
               Zapisz
             </button>
@@ -157,17 +155,15 @@ export default function PlaceDetailPage() {
           <div style={{ display: "grid", gap: 12 }}>
             <textarea value={rules} onChange={(event) => setRules(event.target.value)} rows={4} />
             <button
-              onClick={async () => {
-                try {
-                  await apiFetch(`/api/places/${placeId}`, {
-                    method: "PATCH",
-                    body: JSON.stringify({ rules })
-                  });
-                  toast.success("Zasady zapisane.");
-                } catch {
-                  toast.error("Nie udało się zapisać zasad.");
-                }
-              }}
+              onClick={() =>
+                rulesMutation.mutate(
+                  { placeId, rules },
+                  {
+                    onSuccess: () => toast.success("Zasady zapisane."),
+                    onError: () => toast.error("Nie udało się zapisać zasad.")
+                  }
+                )
+              }
             >
               Zapisz zasady
             </button>
@@ -200,21 +196,21 @@ export default function PlaceDetailPage() {
         ))}
         {isOwner ? (
           <button
-            onClick={async () => {
-              try {
-                const entries = GUIDE_LABELS.map((item) => ({
-                  categoryKey: item.key,
-                  text: guides[item.key] ?? ""
-                }));
-                await apiFetch(`/api/guides/${placeId}`, {
-                  method: "PUT",
-                  body: JSON.stringify({ entries })
-                });
-                toast.success("Przewodnik zapisany.");
-              } catch {
-                toast.error("Nie udało się zapisać przewodnika.");
-              }
-            }}
+            onClick={() =>
+              guidesMutation.mutate(
+                {
+                  placeId,
+                  entries: GUIDE_LABELS.map((item) => ({
+                    categoryKey: item.key,
+                    text: guides[item.key] ?? ""
+                  }))
+                },
+                {
+                  onSuccess: () => toast.success("Przewodnik zapisany."),
+                  onError: () => toast.error("Nie udało się zapisać przewodnika.")
+                }
+              )
+            }
           >
             Zapisz przewodnik
           </button>

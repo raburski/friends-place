@@ -1,46 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch, apiPost, ApiError } from "../_components/api";
+import { useMemo, useState } from "react";
 import { Copy, Trash } from "@phosphor-icons/react";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useFriendsQuery, useInvitesQuery } from "../../shared/query/hooks/useQueries";
+import { useRevokeInviteMutation, useUnfriendMutation } from "../../shared/query/hooks/useMutations";
 
 type Friend = { friendshipId: string; friendId: string; handle?: string; displayName?: string };
 
 type Invite = { id: string; code: string; type: string; revokedAt?: string | null };
 
 export default function FriendsPage() {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const apiOptions = useWebApiOptions();
+  const friendsQuery = useFriendsQuery(apiOptions);
+  const invitesQuery = useInvitesQuery(apiOptions);
 
-  const refresh = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [friendsPayload, invitesPayload] = await Promise.all([
-        apiFetch<{ ok: boolean; data: Friend[] }>("/api/friends"),
-        apiFetch<{ ok: boolean; data: Invite[] }>("/api/invites")
-      ]);
-      setFriends(friendsPayload.data ?? []);
-      setInvites(invitesPayload.data ?? []);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(`Nie udało się pobrać znajomych. (${err.code ?? err.status})`);
-      } else {
-        setError("Nie udało się pobrać znajomych.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { friends, invites } = useMemo(() => {
+    return {
+      friends: friendsQuery.data?.data ?? [],
+      invites: invitesQuery.data?.data ?? []
+    };
+  }, [friendsQuery.data, invitesQuery.data]);
 
-  useEffect(() => {
-    refresh();
-  }, []);
+  const loading = friendsQuery.isLoading || invitesQuery.isLoading;
+  const error = friendsQuery.isError || invitesQuery.isError
+    ? "Nie udało się pobrać znajomych."
+    : null;
+
+  const revokeInviteMutation = useRevokeInviteMutation(apiOptions);
+  const unfriendMutation = useUnfriendMutation(apiOptions);
 
   const inviteUrl = (code: string) => {
     if (typeof window === "undefined") {
@@ -145,9 +136,11 @@ export default function FriendsPage() {
               </button>
               <button
                 onClick={async () => {
-                  await apiPost(`/api/invites/${revokeId}/revoke`);
+                  if (!revokeId) {
+                    return;
+                  }
+                  await revokeInviteMutation.mutateAsync(revokeId);
                   setRevokeId(null);
-                  refresh();
                 }}
               >
                 Wycofaj
@@ -167,9 +160,11 @@ export default function FriendsPage() {
               </button>
               <button
                 onClick={async () => {
-                  await apiPost("/api/friends/unfriend", { friendId: removeId });
+                  if (!removeId) {
+                    return;
+                  }
+                  await unfriendMutation.mutateAsync(removeId);
                   setRemoveId(null);
-                  refresh();
                 }}
               >
                 Usuń

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, ApiError } from "../_components/api";
+import { ApiError } from "../_components/api";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useMeQuery } from "../../shared/query/hooks/useQueries";
+import { useUpdateProfileMutation } from "../../shared/query/hooks/useMutations";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<{ displayName?: string; handle?: string } | null>(null);
@@ -10,21 +13,13 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [needsProfile, setNeedsProfile] = useState(false);
 
-  const refresh = async () => {
-    try {
-      const me = await apiFetch<{ ok: boolean; data: { displayName?: string; handle?: string } }>(
-        "/api/me"
-      );
-      setProfile(me.data ?? null);
-      setDisplayName(me.data?.displayName ?? "");
-      setHandle(me.data?.handle ?? "");
-      const incomplete = !(me.data?.displayName && me.data?.handle);
-      setNeedsProfile(incomplete);
-      if (incomplete) {
-        return;
-      }
+  const apiOptions = useWebApiOptions();
+  const meQuery = useMeQuery(apiOptions);
+  const updateProfileMutation = useUpdateProfileMutation(apiOptions);
 
-    } catch (err) {
+  useEffect(() => {
+    if (meQuery.isError) {
+      const err = meQuery.error;
       if (err instanceof ApiError && err.status === 401) {
         setError("Musisz się zalogować.");
         return;
@@ -38,12 +33,18 @@ export default function ProfilePage() {
         return;
       }
       setError("Nie udało się pobrać profilu.");
+      return;
     }
-  };
-
-  useEffect(() => {
-    refresh();
-  }, []);
+    if (!meQuery.data?.data) {
+      return;
+    }
+    const me = meQuery.data.data;
+    setProfile(me ?? null);
+    setDisplayName(me.displayName ?? "");
+    setHandle(me.handle ?? "");
+    const incomplete = !(me.displayName && me.handle);
+    setNeedsProfile(incomplete);
+  }, [meQuery.data, meQuery.isError, meQuery.error]);
 
   return (
     <div>
@@ -73,12 +74,9 @@ export default function ProfilePage() {
               <button
                 onClick={async () => {
                   try {
-                    await apiFetch("/api/me", {
-                      method: "PATCH",
-                      body: JSON.stringify({ displayName, handle, locale: "pl" })
-                    });
+                    await updateProfileMutation.mutateAsync({ displayName, handle, locale: "pl" });
                     setNeedsProfile(false);
-                    refresh();
+                    await meQuery.refetch();
                   } catch {
                     setError("Nie udało się zapisać profilu.");
                   }

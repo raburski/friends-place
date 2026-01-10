@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch } from "../_components/api";
+import { useMemo } from "react";
+import { useWebApiOptions } from "../_components/useWebApiOptions";
+import { useBookingsQuery } from "../../shared/query/hooks/useQueries";
+import { useApproveBookingMutation, useDeclineBookingMutation } from "../../shared/query/hooks/useMutations";
 
 type Booking = {
   id: string;
@@ -17,25 +19,23 @@ type BookingsPayload = {
 };
 
 export default function BookingsPage() {
-  const [data, setData] = useState<BookingsPayload>({ myStays: [], atMyPlaces: [] });
-  const [history, setHistory] = useState<Booking[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const apiOptions = useWebApiOptions();
+  const currentQuery = useBookingsQuery("current", apiOptions);
+  const historyQuery = useBookingsQuery("history", apiOptions);
 
-  useEffect(() => {
-    Promise.all([
-      apiFetch<{ ok: boolean; data: BookingsPayload }>("/api/bookings"),
-      apiFetch<{ ok: boolean; data: BookingsPayload }>("/api/bookings?history=true")
-    ])
-      .then(([currentPayload, historyPayload]) => {
-        setData(currentPayload.data);
-        const past = [
-          ...historyPayload.data.myStays,
-          ...historyPayload.data.atMyPlaces
-        ].filter((booking) => ["canceled", "declined", "completed"].includes(booking.status));
-        setHistory(past);
-      })
-      .catch(() => setError("Nie udało się pobrać rezerwacji."));
-  }, []);
+  const data = currentQuery.data?.data ?? { myStays: [], atMyPlaces: [] };
+  const history = useMemo(() => {
+    const payload = historyQuery.data?.data ?? { myStays: [], atMyPlaces: [] };
+    return [...payload.myStays, ...payload.atMyPlaces].filter((booking) =>
+      ["canceled", "declined", "completed"].includes(booking.status)
+    );
+  }, [historyQuery.data]);
+
+  const error =
+    currentQuery.isError || historyQuery.isError ? "Nie udało się pobrać rezerwacji." : null;
+
+  const approveMutation = useApproveBookingMutation(apiOptions);
+  const declineMutation = useDeclineBookingMutation(apiOptions);
 
   const allBookings = [
     ...data.myStays.map((booking) => ({ ...booking, source: "my" as const })),
@@ -95,29 +95,15 @@ export default function BookingsPage() {
                   {booking.source === "host" && booking.status === "requested" ? (
                     <div className="action-bar">
                       <button
-                        onClick={async () => {
-                          await apiFetch(`/api/bookings/${booking.id}/approve`, { method: "POST" });
-                          setData((current) => ({
-                            ...current,
-                            atMyPlaces: current.atMyPlaces.map((item) =>
-                              item.id === booking.id ? { ...item, status: "approved" } : item
-                            )
-                          }));
-                        }}
+                        onClick={() => approveMutation.mutate(booking.id)}
+                        disabled={approveMutation.isLoading}
                       >
                         Akceptuj
                       </button>
                       <button
                         className="secondary-button"
-                        onClick={async () => {
-                          await apiFetch(`/api/bookings/${booking.id}/decline`, { method: "POST" });
-                          setData((current) => ({
-                            ...current,
-                            atMyPlaces: current.atMyPlaces.map((item) =>
-                              item.id === booking.id ? { ...item, status: "declined" } : item
-                            )
-                          }));
-                        }}
+                        onClick={() => declineMutation.mutate(booking.id)}
+                        disabled={declineMutation.isLoading}
                       >
                         Odrzuć
                       </button>

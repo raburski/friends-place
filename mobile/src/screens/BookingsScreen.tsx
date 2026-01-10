@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useSession } from "../auth/useSession";
-import { apiGet, apiPost } from "../api/client";
 import { formatDate } from "../utils/date";
 import { theme } from "../theme";
+import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
+import { useBookingsQuery } from "../../../shared/query/hooks/useQueries";
+import { useApproveBookingMutation, useDeclineBookingMutation } from "../../../shared/query/hooks/useMutations";
 
 type Booking = {
   id: string;
@@ -15,45 +16,50 @@ type Booking = {
 };
 
 export function BookingsScreen() {
-  const { session } = useSession();
-  const [myStays, setMyStays] = useState<Booking[]>([]);
-  const [atMyPlaces, setAtMyPlaces] = useState<Booking[]>([]);
-  const [history, setHistory] = useState<Booking[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const apiOptions = useMobileApiOptions();
+  const apiQueryOptions = useMobileApiQueryOptions();
+  const currentQuery = useBookingsQuery("current", apiQueryOptions);
+  const historyQuery = useBookingsQuery("history", apiQueryOptions);
+  const approveMutation = useApproveBookingMutation(apiOptions);
+  const declineMutation = useDeclineBookingMutation(apiOptions);
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    Promise.all([
-      apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
-        "/api/bookings",
-        session.token
-      ),
-      apiGet<{ ok: boolean; data: { myStays: unknown[]; atMyPlaces: unknown[] } }>(
-        "/api/bookings?history=true",
-        session.token
-      )
-    ])
-      .then(([currentPayload, historyPayload]) => {
-        setMyStays((currentPayload.data?.myStays as Booking[]) ?? []);
-        setAtMyPlaces((currentPayload.data?.atMyPlaces as Booking[]) ?? []);
-        const past = [
-          ...(historyPayload.data?.myStays as Booking[]),
-          ...(historyPayload.data?.atMyPlaces as Booking[])
-        ].filter((booking) => ["canceled", "declined", "completed"].includes(booking.status));
-        setHistory(past);
-      })
-      .catch(() => setError("Nie udało się pobrać rezerwacji."));
-  }, [session]);
+  const myStays = useMemo(
+    () => (currentQuery.data?.data?.myStays as Booking[]) ?? [],
+    [currentQuery.data]
+  );
+  const atMyPlaces = useMemo(
+    () => (currentQuery.data?.data?.atMyPlaces as Booking[]) ?? [],
+    [currentQuery.data]
+  );
+  const history = useMemo(() => {
+    const payload = historyQuery.data?.data ?? { myStays: [], atMyPlaces: [] };
+    return [...payload.myStays, ...payload.atMyPlaces].filter((booking) =>
+      ["canceled", "declined", "completed"].includes(booking.status)
+    ) as Booking[];
+  }, [historyQuery.data]);
+
+  const error =
+    currentQuery.isError || historyQuery.isError ? "Nie udało się pobrać rezerwacji." : null;
+  const loading = currentQuery.isLoading || historyQuery.isLoading;
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([currentQuery.refetch(), historyQuery.refetch()]);
+    setRefreshing(false);
+  }, [currentQuery, historyQuery]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={styles.headerRow}>
           <Text style={styles.title}>Rezerwacje</Text>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {loading ? <Text style={styles.muted}>Ładowanie...</Text> : null}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Moje pobyty</Text>
           {myStays.length === 0 ? (
@@ -108,13 +114,7 @@ export function BookingsScreen() {
                       <Pressable
                         style={styles.smallButton}
                         onPress={async () => {
-                          if (!session) return;
-                          await apiPost(`/api/bookings/${booking.id}/approve`, session.token);
-                          setAtMyPlaces((current) =>
-                            current.map((item) =>
-                              item.id === booking.id ? { ...item, status: "approved" } : item
-                            )
-                          );
+                          approveMutation.mutate(booking.id);
                         }}
                       >
                         <Text style={styles.smallButtonText}>Akceptuj</Text>
@@ -122,13 +122,7 @@ export function BookingsScreen() {
                       <Pressable
                         style={[styles.smallButton, styles.secondaryButton]}
                         onPress={async () => {
-                          if (!session) return;
-                          await apiPost(`/api/bookings/${booking.id}/decline`, session.token);
-                          setAtMyPlaces((current) =>
-                            current.map((item) =>
-                              item.id === booking.id ? { ...item, status: "declined" } : item
-                            )
-                          );
+                          declineMutation.mutate(booking.id);
                         }}
                       >
                         <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>

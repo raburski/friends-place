@@ -1,41 +1,24 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useSession } from "../auth/useSession";
-import { apiGet } from "../api/client";
 import { theme } from "../theme";
 import type { ProfileStackParamList } from "../navigation/ProfileStack";
 import { CaretRight, Gear } from "phosphor-react-native";
+import { useMobileApiQueryOptions } from "../api/useMobileApiOptions";
+import { useFriendsQuery, useMeQuery } from "../../../shared/query/hooks/useQueries";
 
 export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList, "ProfileHome">>();
-  const { session } = useSession();
-  const [profile, setProfile] = useState<{ displayName?: string; handle?: string } | null>(null);
-  const [friendsCount, setFriendsCount] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const apiQueryOptions = useMobileApiQueryOptions();
+  const meQuery = useMeQuery(apiQueryOptions);
+  const friendsQuery = useFriendsQuery(apiQueryOptions);
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    Promise.all([
-      apiGet<{ ok: boolean; data: { displayName?: string; handle?: string } }>(
-        "/api/me",
-        session.token
-      ),
-      apiGet<{
-        ok: boolean;
-        data: Array<{ friendshipId: string; friendId: string; handle?: string; displayName?: string }>;
-      }>("/api/friends", session.token)
-    ])
-      .then(([me, friendsPayload]) => {
-        setProfile(me.data ?? null);
-        setFriendsCount(friendsPayload.data?.length ?? 0);
-      })
-      .catch(() => setError("Nie udało się pobrać profilu."));
-  }, [session]);
+  const profile = useMemo(() => meQuery.data?.data ?? null, [meQuery.data]);
+  const friendsCount = useMemo(() => friendsQuery.data?.data?.length ?? 0, [friendsQuery.data]);
+  const error =
+    meQuery.isError || friendsQuery.isError ? "Nie udało się pobrać profilu." : null;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
