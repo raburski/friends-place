@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { Button } from "../../../_components/Button";
 
 type RedeemResponse = {
   ok: boolean;
@@ -59,9 +60,10 @@ export default function InviteRedeemPage() {
             </a>
           ) : null}
           {action === "ready" ? (
-            <button
+            <Button
               className="cta"
-              disabled={submitting}
+              loading={submitting}
+              loadingLabel="Wysyłanie..."
               onClick={async () => {
                 setSubmitting(true);
                 try {
@@ -93,8 +95,8 @@ export default function InviteRedeemPage() {
                 }
               }}
             >
-              {submitting ? "Wysyłanie..." : "Potwierdź zaproszenie"}
-            </button>
+              Potwierdź zaproszenie
+            </Button>
           ) : null}
           {action === "done" ? (
             <a className="secondary" href="/friends">

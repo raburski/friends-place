@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { Button } from "../../_components/Button";
 
 const links = [
   { href: "/places", label: "Miejsca" },
@@ -34,13 +35,13 @@ export function WebNav() {
         })}
       </div>
       {status === "authenticated" ? (
-        <button className="web-nav__link web-nav__button" onClick={() => signOut({ callbackUrl: "/" })}>
+        <Button className="web-nav__link web-nav__button" onClick={() => signOut({ callbackUrl: "/" })}>
           Wyloguj
-        </button>
+        </Button>
       ) : (
-        <button className="web-nav__link web-nav__button" onClick={() => signIn()}>
+        <Button className="web-nav__link web-nav__button" onClick={() => signIn()}>
           Zaloguj
-        </button>
+        </Button>
       )}
     </nav>
   );

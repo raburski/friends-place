@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useWebApiOptions } from "../../../_components/useWebApiOptions";
 import { useCreatePlaceMutation } from "../../../../shared/query/hooks/useMutations";
+import { Button } from "../../../_components/Button";
+import { SectionCard } from "../../../_components/SectionCard";
+import { ScreenLayout } from "../../../_components/ScreenLayout";
 
 type PlacePayload = {
   id: string;
@@ -41,12 +44,9 @@ export function NewPlaceForm({ onCreated, onCancel }: NewPlaceFormProps) {
   };
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-        <h1 className="page-title">Dodaj miejsce</h1>
-      </div>
+    <ScreenLayout title="Dodaj miejsce">
       {error ? <p className="muted">{error}</p> : null}
-      <div className="card" style={{ display: "grid", gap: 12, maxWidth: 520 }}>
+      <SectionCard style={{ display: "grid", gap: 12, maxWidth: 520 }}>
         <label style={{ display: "grid", gap: 6 }}>
           <span className="muted">Nazwa miejsca</span>
           <input
@@ -64,14 +64,19 @@ export function NewPlaceForm({ onCreated, onCancel }: NewPlaceFormProps) {
           />
         </label>
         <div className="action-bar">
-          <button type="button" disabled={!canSubmit} onClick={handleSubmit}>
-            {isSubmitting ? "Zapisywanie..." : "Dodaj miejsce"}
-          </button>
-          <button type="button" className="secondary-button" onClick={onCancel}>
+          <Button
+            disabled={!canSubmit}
+            onClick={handleSubmit}
+            loading={isSubmitting}
+            loadingLabel="Zapisywanie..."
+          >
+            Dodaj miejsce
+          </Button>
+          <Button variant="secondary" onClick={onCancel}>
             Anuluj
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </SectionCard>
+    </ScreenLayout>
   );
 }

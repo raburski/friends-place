@@ -4,9 +4,10 @@ import { PlacesScreen } from "../screens/PlacesScreen";
 import { AddPlaceScreen } from "../screens/AddPlaceScreen";
 import { PlaceDetailScreen } from "../screens/PlaceDetailScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
-import { Pressable, Text, View, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useNotifications } from "../notifications/NotificationsProvider";
 import { type Theme, useTheme } from "../theme";
+import { Button } from "../ui/Button";
 
 export type PlacesStackParamList = {
   PlacesList: undefined;
@@ -41,14 +42,20 @@ export function PlacesStack() {
           title: "Miejsca",
           headerRight: () => (
             <View style={styles.headerActions}>
-              <Pressable onPress={() => navigation.navigate("AddPlace")}>
-                <Text style={styles.headerActionText}>Dodaj</Text>
-              </Pressable>
-              <Pressable onPress={() => navigation.navigate("Notifications")}>
-                <Text style={styles.headerActionText}>
-                  Powiadomienia{unreadCount > 0 ? ` (${unreadCount})` : ""}
-                </Text>
-              </Pressable>
+              <Button
+                label="Dodaj"
+                size="xs"
+                variant="ghost"
+                textStyle={styles.headerActionText}
+                onPress={() => navigation.navigate("AddPlace")}
+              />
+              <Button
+                label={`Powiadomienia${unreadCount > 0 ? ` (${unreadCount})` : ""}`}
+                size="xs"
+                variant="ghost"
+                textStyle={styles.headerActionText}
+                onPress={() => navigation.navigate("Notifications")}
+              />
             </View>
           )
         })}

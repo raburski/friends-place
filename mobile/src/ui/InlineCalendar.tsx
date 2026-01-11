@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { type Theme, useTheme } from "../theme";
 import { availabilityColors } from "../../../shared/theme/availabilityColors";
+import { Button } from "./Button";
 
 export type CalendarRange = { startDate: string; endDate: string };
 
@@ -100,13 +101,23 @@ export function InlineCalendar({
       {months.map((month) => (
         <View key={`${month.getFullYear()}-${month.getMonth()}`} style={styles.monthCard}>
           <View style={styles.monthHeader}>
-            <Pressable style={styles.navButton} onPress={() => setMonthOffset((current) => current - 1)}>
-              <Text style={styles.navButtonText}>←</Text>
-            </Pressable>
+            <Button
+              label="←"
+              variant="secondary"
+              size="xs"
+              textStyle={styles.navButtonText}
+              style={styles.navButton}
+              onPress={() => setMonthOffset((current) => current - 1)}
+            />
             <Text style={styles.monthLabel}>{getMonthLabel(month)}</Text>
-            <Pressable style={styles.navButton} onPress={() => setMonthOffset((current) => current + 1)}>
-              <Text style={styles.navButtonText}>→</Text>
-            </Pressable>
+            <Button
+              label="→"
+              variant="secondary"
+              size="xs"
+              textStyle={styles.navButtonText}
+              style={styles.navButton}
+              onPress={() => setMonthOffset((current) => current + 1)}
+            />
           </View>
           <View style={styles.weekdays}>
             {WEEKDAYS.map((day) => (

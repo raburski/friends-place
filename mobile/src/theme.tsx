@@ -5,9 +5,9 @@ import * as SecureStore from "expo-secure-store";
 const lightTheme = {
   mode: "light",
   colors: {
-    bg: "#f7f4ee",
-    surface: "#fff9f0",
-    surfaceAlt: "#fffdf6",
+    bg: "#ffffff",
+    surface: "#ffffff",
+    surfaceAlt: "#ffffff",
     border: "#c3beb5",
     text: "#1b1b1b",
     muted: "#4b4b4b",

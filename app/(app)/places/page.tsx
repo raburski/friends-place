@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Modal } from "../../_components/Modal";
+import { IconButton } from "../../_components/Button";
+import { Plus } from "@phosphor-icons/react";
+import { SectionCard } from "../../_components/SectionCard";
+import { ScreenLayout } from "../../_components/ScreenLayout";
 import { useWebApiOptions } from "../../_components/useWebApiOptions";
 import { useMeQuery, usePlacesQuery } from "../../../shared/query/hooks/useQueries";
 import { NewPlaceForm } from "./_components/NewPlaceForm";
@@ -48,16 +52,10 @@ export default function PlacesPage() {
     "Kolega";
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-        <h1 className="page-title">Miejsca</h1>
-      </div>
+    <ScreenLayout title="Miejsca">
       {error ? <p className="muted">{error}</p> : null}
       <div className="panel-grid">
-        <div className="card" style={{ display: "grid", gap: 12 }}>
-          <div>
-            <h2 className="section-title">Kolegów</h2>
-          </div>
+        <SectionCard title="Kolegów" style={{ display: "grid", gap: 12 }}>
           {loading ? (
             <p className="muted">Ładowanie...</p>
           ) : friendPlaces.length === 0 ? (
@@ -86,28 +84,20 @@ export default function PlacesPage() {
               </Link>
             ))
           )}
-        </div>
+        </SectionCard>
 
-        <div className="card" style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <h2 className="section-title">Moje</h2>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Dodaj miejsce"
+        <SectionCard
+          title="Moje"
+          actions={
+            <IconButton
+              label="Dodaj miejsce"
+              icon={<Plus size={18} weight="bold" />}
               style={{ marginTop: -8 }}
               onClick={() => setCreateModalOpen(true)}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M12 5v14M5 12h14"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          </div>
+            />
+          }
+          style={{ display: "grid", gap: 12 }}
+        >
           {loading ? (
             <p className="muted">Ładowanie...</p>
           ) : myPlaces.length === 0 ? (
@@ -136,7 +126,7 @@ export default function PlacesPage() {
               </Link>
             ))
           )}
-        </div>
+        </SectionCard>
       </div>
       <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} showCloseButton>
         <NewPlaceForm
@@ -147,6 +137,6 @@ export default function PlacesPage() {
           onCancel={() => setCreateModalOpen(false)}
         />
       </Modal>
-    </div>
+    </ScreenLayout>
   );
 }

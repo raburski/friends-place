@@ -1,12 +1,17 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
+import { Text, StyleSheet, RefreshControl } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useMobileApiQueryOptions } from "../api/useMobileApiOptions";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { type Theme, useTheme } from "../theme";
 import { useMeQuery, usePlacesQuery } from "../../../shared/query/hooks/useQueries";
+import { Button, IconButton } from "../ui/Button";
+import { EmptyView } from "../ui/EmptyView";
+import { LoadingView } from "../ui/LoadingView";
+import { PlaceRow } from "../ui/PlaceRow";
+import { Screen } from "../ui/Screen";
+import { List } from "../ui/List";
 
 type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "PlacesList">;
 
@@ -22,7 +27,15 @@ export function PlacesScreen() {
   const places = useMemo(
     () =>
       (placesQuery.data?.data ??
-        []) as Array<{ id: string; ownerId: string; name: string; address: string; lat?: number; lng?: number }>,
+        []) as Array<{
+          id: string;
+          ownerId: string;
+          name: string;
+          address: string;
+          headlineImageUrl?: string | null;
+          lat?: number;
+          lng?: number;
+        }>,
     [placesQuery.data]
   );
   const userId = meQuery.data?.data?.id ?? null;
@@ -38,207 +51,92 @@ export function PlacesScreen() {
   const myPlaces = userId ? places.filter((place) => place.ownerId === userId) : [];
   const friendPlaces = userId ? places.filter((place) => place.ownerId !== userId) : [];
 
-
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        refreshControl={
+    <Screen
+      title="Miejsca"
+      scrollProps={{
+        refreshControl: (
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={theme.colors.primary}
             colors={[theme.colors.primary]}
           />
+        )
+      }}
+    >
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <List title="Kolegów">
+        {loading ? (
+          <LoadingView />
+        ) : friendPlaces.length === 0 ? (
+          <EmptyView message="Brak miejsc od kolegów." />
+        ) : (
+          friendPlaces.map((place, index) => (
+            <PlaceRow
+              key={place.id}
+              onPress={() => navigation.navigate("PlaceDetail", { placeId: place.id, name: place.name })}
+              badgeLabel="Kolega"
+              name={place.name}
+              address={place.address}
+              imageUrl={place.headlineImageUrl}
+              isLastRow={index === friendPlaces.length - 1}
+            />
+          ))
+        )}
+      </List>
+
+      <List
+        title="Moje"
+        right={
+          <IconButton
+            accessibilityLabel="Dodaj miejsce"
+            icon={<Text style={styles.iconButtonText}>+</Text>}
+            onPress={() => navigation.navigate("AddPlace")}
+          />
         }
       >
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Miejsca</Text>
-        </View>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Kolegów</Text>
-          {loading ? (
-            <Text style={styles.muted}>Ładowanie...</Text>
-          ) : friendPlaces.length === 0 ? (
-            <Text style={styles.muted}>Brak miejsc od kolegów.</Text>
-          ) : (
-            friendPlaces.map((place) => (
-              <Pressable
-                key={place.id}
-                style={styles.placeCard}
-                onPress={() => navigation.navigate("PlaceDetail", { placeId: place.id, name: place.name })}
-              >
-                <View style={styles.placeTitleRow}>
-                  <Text style={styles.placeTitle}>{place.name}</Text>
-                  <View style={styles.pill}>
-                    <Text style={styles.pillText}>Kolega</Text>
-                  </View>
-                </View>
-                <Text style={styles.placeAddress}>{place.address}</Text>
-              </Pressable>
-            ))
-          )}
-        </View>
-
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Moje</Text>
-            <Pressable
-              style={styles.iconButton}
+        {loading ? (
+          <LoadingView />
+        ) : myPlaces.length === 0 ? (
+          <EmptyView message="Nie masz jeszcze żadnego miejsca.">
+            <Button
+              label="Dodaj miejsce"
+              style={styles.inlineButton}
               onPress={() => navigation.navigate("AddPlace")}
-              accessibilityLabel="Dodaj miejsce"
-            >
-              <Text style={styles.iconButtonText}>+</Text>
-            </Pressable>
-          </View>
-          {loading ? (
-            <Text style={styles.muted}>Ładowanie...</Text>
-          ) : myPlaces.length === 0 ? (
-            <>
-              <Text style={styles.muted}>Nie masz jeszcze żadnego miejsca.</Text>
-              <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("AddPlace")}>
-                <Text style={styles.primaryButtonText}>Dodaj miejsce</Text>
-              </Pressable>
-            </>
-          ) : (
-            myPlaces.map((place) => (
-              <Pressable
-                key={place.id}
-                style={styles.placeCard}
-                onPress={() => navigation.navigate("PlaceDetail", { placeId: place.id, name: place.name })}
-              >
-                <View style={styles.placeTitleRow}>
-                  <Text style={styles.placeTitle}>{place.name}</Text>
-                  <View style={styles.pill}>
-                    <Text style={styles.pillText}>Ty</Text>
-                  </View>
-                </View>
-                <Text style={styles.placeAddress}>{place.address}</Text>
-              </Pressable>
-            ))
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            />
+          </EmptyView>
+        ) : (
+          myPlaces.map((place, index) => (
+            <PlaceRow
+              key={place.id}
+              onPress={() => navigation.navigate("PlaceDetail", { placeId: place.id, name: place.name })}
+              badgeLabel="Ty"
+              name={place.name}
+              address={place.address}
+              imageUrl={place.headlineImageUrl}
+              isLastRow={index === myPlaces.length - 1}
+            />
+          ))
+        )}
+      </List>
+    </Screen>
   );
 }
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.bg
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 0,
-    gap: 16,
-    backgroundColor: theme.colors.bg
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "600",
-    fontFamily: "Fraunces_600SemiBold",
-    color: theme.colors.text
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  iconButton: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt
-  },
   iconButtonText: {
     fontSize: 18,
     lineHeight: 18,
     fontWeight: "600",
     color: theme.colors.text
   },
-  primaryButton: {
-    marginTop: 12,
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: theme.radius.pill,
+  inlineButton: {
     alignSelf: "flex-start",
-    ...theme.shadow.soft
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontWeight: "600"
-  },
-  sectionCard: {
-    padding: 16,
-    borderRadius: theme.radius.sheet,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    gap: 12,
-    ...theme.shadow.soft
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: theme.colors.text,
-    fontFamily: "Fraunces_600SemiBold"
-  },
-  placeCard: {
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
-    gap: 6
-  },
-  placeTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: theme.colors.text,
-    flexShrink: 1
-  },
-  placeAddress: {
-    fontSize: 13,
-    color: theme.colors.muted
-  },
-  placeTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap"
-  },
-  pill: {
-    alignSelf: "flex-start",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.primarySoft
-  },
-  pillText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: theme.colors.primary
+    marginTop: 12
   },
   error: {
     color: theme.colors.error
-  },
-  muted: {
-    color: theme.colors.muted
   }
   });

@@ -1,20 +1,36 @@
-import { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable, Share, ScrollView, Alert } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { View, Text, StyleSheet, Share } from "react-native";
 import { API_BASE_URL } from "../config";
 import { type Theme, useTheme } from "../theme";
 import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
 import { useFriendsQuery, useInvitesQuery } from "../../../shared/query/hooks/useQueries";
 import { useRevokeInviteMutation, useUnfriendMutation } from "../../../shared/query/hooks/useMutations";
+import { Button, IconButton } from "../ui/Button";
+import { Screen } from "../ui/Screen";
+import { List } from "../ui/List";
+import { ListRow } from "../ui/ListRow";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { useActionSheet } from "@expo/react-native-action-sheet";
 
 export function FriendsScreen() {
+  const [revokeId, setRevokeId] = useState<string | null>(null);
   const apiOptions = useMobileApiOptions();
   const apiQueryOptions = useMobileApiQueryOptions();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { showActionSheetWithOptions } = useActionSheet();
   const friendsQuery = useFriendsQuery(apiQueryOptions);
   const invitesQuery = useInvitesQuery(apiQueryOptions);
   const unfriendMutation = useUnfriendMutation(apiOptions);
   const revokeInviteMutation = useRevokeInviteMutation(apiOptions);
+  const unfriendIsPending =
+    (unfriendMutation as { isPending?: boolean }).isPending ??
+    (unfriendMutation as { isLoading?: boolean }).isLoading ??
+    false;
+  const revokeIsPending =
+    (revokeInviteMutation as { isPending?: boolean }).isPending ??
+    (revokeInviteMutation as { isLoading?: boolean }).isLoading ??
+    false;
 
   const friends = useMemo(
     () => friendsQuery.data?.data ?? [],
@@ -29,224 +45,164 @@ export function FriendsScreen() {
       ? "Nie udało się pobrać danych."
       : null;
 
+  const handleFriendAction = useCallback(
+    (friendId: string, friendName?: string | null) => {
+      if (unfriendIsPending) {
+        return;
+      }
+      showActionSheetWithOptions(
+        {
+          title: friendName ?? undefined,
+          options: ["Usuń kolegę", "Anuluj"],
+          cancelButtonIndex: 1,
+          destructiveButtonIndex: 0
+        },
+        (selectedIndex?: number) => {
+          if (selectedIndex === 0) {
+            void unfriendMutation.mutateAsync(friendId);
+          }
+        }
+      );
+    },
+    [showActionSheetWithOptions, unfriendIsPending, unfriendMutation]
+  );
+
   return (
-    <View style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Znajomi</Text>
-          {friends.length === 0 ? (
+    <Screen withHeader>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <List>
+        {friends.length === 0 ? (
+          <View style={styles.emptyState}>
             <Text style={styles.muted}>Brak znajomych.</Text>
-          ) : (
-            friends.map((friend) => (
-              <View key={friend.friendshipId} style={styles.card}>
-                <View style={styles.friendRow}>
-                  <View style={styles.friendMeta}>
-                    <Text style={styles.cardTitle}>{friend.displayName ?? "Znajomy"}</Text>
-                    <Text style={styles.cardText}>@{friend.handle ?? "bez_handle"}</Text>
-                  </View>
-                  <Pressable
-                    style={[styles.smallButton, styles.secondaryButton, styles.removeButton]}
-                    onPress={() => {
-                      Alert.alert("Usunąć znajomego?", "Stracicie dostęp do swoich miejsc.", [
-                        { text: "Anuluj", style: "cancel" },
-                        {
-                          text: "Usuń",
-                          style: "destructive",
-                          onPress: async () => {
-                            await unfriendMutation.mutateAsync(friend.friendId);
-                          }
-                        }
-                      ]);
-                    }}
-                  >
-                    <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>X</Text>
-                  </Pressable>
-                </View>
+          </View>
+        ) : (
+          friends.map((friend, index) => (
+            <ListRow
+              key={friend.friendshipId}
+              isLastRow={index === friends.length - 1}
+              onPress={() => handleFriendAction(friend.friendId, friend.displayName)}
+              disabled={unfriendIsPending}
+              accessibilityRole="button"
+              accessibilityLabel="Opcje znajomego"
+            >
+              <View style={styles.rowMeta}>
+                <Text style={styles.rowTitle}>{friend.displayName ?? "Znajomy"}</Text>
+                <Text style={styles.rowText}>@{friend.handle ?? "bez_handle"}</Text>
               </View>
-            ))
-          )}
-        </View>
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Dodaj znajomego</Text>
-          <Text style={styles.muted}>Udostępnij swój link zaproszenia.</Text>
-          {invites.length === 0 ? (
+            </ListRow>
+          ))
+        )}
+      </List>
+      <List title="Dodaj znajomego" subtitle="Udostępnij swój link zaproszenia.">
+        {invites.length === 0 ? (
+          <View style={styles.emptyState}>
             <Text style={styles.muted}>Brak linków.</Text>
-          ) : (
-            invites
-              .filter((invite) => !invite.revokedAt)
-              .map((invite) => (
-                <Pressable
-                  key={invite.id}
-                  style={styles.inviteRow}
-                  onPress={async () => {
-                    await Share.share({
-                      message: `${API_BASE_URL}/auth/invite/${invite.code}`
-                    });
-                  }}
-                >
-                  <View style={styles.inviteMeta}>
-                    <Text style={styles.cardTitle}>
-                      {invite.type === "single" ? "Jednorazowy" : "Wielorazowy"}
-                    </Text>
-                    <Text style={styles.cardText}>Kod: {invite.code}</Text>
-                  </View>
+          </View>
+        ) : (
+          invites
+            .filter((invite) => !invite.revokedAt)
+            .map((invite, index, filteredInvites) => (
+              <ListRow
+                key={invite.id}
+                isLastRow={index === filteredInvites.length - 1}
+                onPress={async () => {
+                  await Share.share({
+                    message: `${API_BASE_URL}/auth/invite/${invite.code}`
+                  });
+                }}
+                right={
                   <View style={styles.inviteActions}>
-                    <Pressable
-                      style={styles.smallButton}
+                    <Button
+                      label="Udostępnij"
+                      size="sm"
                       onPress={async (event) => {
                         event.stopPropagation?.();
                         await Share.share({
                           message: `${API_BASE_URL}/auth/invite/${invite.code}`
                         });
                       }}
-                    >
-                      <Text style={styles.smallButtonText}>Udostępnij</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.smallButton, styles.secondaryButton]}
+                    />
+                    <IconButton
+                      accessibilityLabel="Wycofaj link"
+                      variant="secondary"
+                      size="sm"
+                      icon={<Text style={styles.iconAccent}>🗑</Text>}
                       onPress={(event) => {
                         event.stopPropagation?.();
-                        Alert.alert("Wycofać link?", "Link przestanie działać natychmiast.", [
-                          { text: "Anuluj", style: "cancel" },
-                          {
-                            text: "Wycofaj",
-                            style: "destructive",
-                            onPress: async () => {
-                              await revokeInviteMutation.mutateAsync(invite.id);
-                            }
-                          }
-                        ]);
+                        setRevokeId(invite.id);
                       }}
-                    >
-                      <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>🗑</Text>
-                    </Pressable>
+                    />
                   </View>
-                </Pressable>
-              ))
-          )}
+                }
+              >
+                <View style={styles.rowMeta}>
+                  <Text style={styles.rowTitle}>
+                    {invite.type === "single" ? "Jednorazowy" : "Wielorazowy"}
+                  </Text>
+                  <Text style={styles.rowText}>Kod: {invite.code}</Text>
+                </View>
+              </ListRow>
+            ))
+        )}
+        <View style={styles.listFooter}>
           <Text style={styles.muted}>Link jest tworzony automatycznie.</Text>
         </View>
-      </ScrollView>
-    </View>
+      </List>
+      <ConfirmDialog
+        visible={Boolean(revokeId)}
+        title="Wycofać link?"
+        description="Link przestanie działać natychmiast."
+        confirmLabel="Wycofaj"
+        confirmLoading={revokeIsPending}
+        confirmLoadingLabel="Wycofywanie..."
+        onCancel={() => setRevokeId(null)}
+        onConfirm={async () => {
+          if (!revokeId) {
+            return;
+          }
+          await revokeInviteMutation.mutateAsync(revokeId);
+          setRevokeId(null);
+        }}
+      />
+    </Screen>
   );
 }
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.bg
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 12,
-    gap: 16,
-    backgroundColor: theme.colors.bg
-  },
-  sectionCard: {
-    padding: 16,
-    borderRadius: theme.radius.sheet,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    gap: 12,
-    ...theme.shadow.soft
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: theme.colors.text,
-    fontFamily: "Fraunces_600SemiBold"
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: theme.colors.text
-  },
   muted: {
     fontSize: 14,
     color: theme.colors.muted
   },
-  card: {
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
-    gap: 6
+  inviteActions: {
+    flexDirection: "row",
+    gap: 8
   },
-  cardTitle: {
+  rowMeta: {
+    gap: 4
+  },
+  rowTitle: {
     fontSize: 14,
     fontWeight: "600",
     color: theme.colors.text
   },
-  cardText: {
+  rowText: {
     fontSize: 12,
     color: theme.colors.muted
   },
-  friendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12
-  },
-  friendMeta: {
-    flex: 1
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 8
-  },
-  smallButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.primary
-  },
-  smallButtonText: {
-    color: "#fff",
+  iconAccent: {
+    color: theme.colors.accent,
     fontWeight: "600",
-    fontSize: 12
+    fontSize: 14
   },
-  secondaryButton: {
-    backgroundColor: theme.colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: theme.colors.border
+  emptyState: {
+    paddingHorizontal: 14,
+    paddingVertical: 12
   },
-  secondaryButtonText: {
-    color: theme.colors.accent
-  },
-  removeButton: {
-    alignSelf: "flex-end",
-    width: 28,
-    height: 28,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  inviteRow: {
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-    flexWrap: "wrap"
-  },
-  inviteMeta: {
-    flex: 1
-  },
-  inviteActions: {
-    flexDirection: "row",
-    gap: 8
+  listFooter: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12
   },
   error: {
     color: theme.colors.error

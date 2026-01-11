@@ -4,6 +4,7 @@ import { WebView } from "react-native-webview";
 import { useSession } from "../auth/useSession";
 import { API_BASE_URL } from "../config";
 import { type Theme, useTheme } from "../theme";
+import { Button } from "../ui/Button";
 
 export function AuthScreen() {
   const { setSessionData } = useSession();
@@ -20,9 +21,7 @@ export function AuthScreen() {
       <Text style={styles.subtitle}>
         Użyj logowania przez przeglądarkę, aby połączyć konto.
       </Text>
-      <Pressable style={styles.button} onPress={() => setShowWebView(true)}>
-        <Text style={styles.buttonText}>Zaloguj się</Text>
-      </Pressable>
+      <Button label="Zaloguj się" style={styles.authButton} onPress={() => setShowWebView(true)} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <Modal visible={showWebView} animationType="slide">
         <SafeAreaView style={styles.modalContainer}>
@@ -73,16 +72,8 @@ const createStyles = (theme: Theme) =>
     textAlign: "center",
     color: theme.colors.muted
   },
-  button: {
-    marginTop: 16,
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 999
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600"
+  authButton: {
+    marginTop: 16
   },
   error: {
     color: theme.colors.error,

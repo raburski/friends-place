@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { useWebApiOptions } from "../../_components/useWebApiOptions";
 import { useBookingsQuery } from "../../../shared/query/hooks/useQueries";
 import { useApproveBookingMutation, useDeclineBookingMutation } from "../../../shared/query/hooks/useMutations";
+import { Button } from "../../_components/Button";
+import { ScreenLayout } from "../../_components/ScreenLayout";
 
 type Booking = {
   id: string;
@@ -109,10 +111,7 @@ export default function BookingsPage() {
     source === "host" ? "U mnie" : "Mój pobyt";
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-        <h1 className="page-title">Rezerwacje</h1>
-      </div>
+    <ScreenLayout title="Rezerwacje">
       {error ? <p className="muted">{error}</p> : null}
       <div className="kanban">
         {columns.map((column) => (
@@ -163,19 +162,19 @@ export default function BookingsPage() {
                     </div>
                     {booking.source === "host" && booking.status === "requested" ? (
                       <div className="action-bar">
-                        <button
+                        <Button
                           onClick={() => approveMutation.mutate(booking.id)}
-                          disabled={approveIsPending}
+                          loading={approveIsPending}
                         >
                           Akceptuj
-                        </button>
-                        <button
-                          className="secondary-button"
+                        </Button>
+                        <Button
+                          variant="secondary"
                           onClick={() => declineMutation.mutate(booking.id)}
-                          disabled={declineIsPending}
+                          loading={declineIsPending}
                         >
                           Odrzuć
-                        </button>
+                        </Button>
                       </div>
                     ) : null}
                   </div>
@@ -185,6 +184,6 @@ export default function BookingsPage() {
           </div>
         ))}
       </div>
-    </div>
+    </ScreenLayout>
   );
 }
