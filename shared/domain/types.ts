@@ -52,6 +52,7 @@ export interface Place {
   type?: PlaceType | null;
   description?: string | null;
   rules?: string | null;
+  headlineImageUrl?: string | null;
   isActive: boolean;
   createdAt: string;
 }

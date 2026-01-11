@@ -10,18 +10,15 @@ export default function SettingsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("theme_mode") as ThemeMode | null;
-    if (stored) {
-      setMode(stored);
-      applyTheme(stored);
-    } else {
-      applyTheme("auto");
-    }
+    const stored = readThemeCookie();
+    const nextMode = stored ?? "auto";
+    setMode(nextMode);
+    applyTheme(nextMode);
   }, []);
 
   const onChange = (next: ThemeMode) => {
     setMode(next);
-    window.localStorage.setItem("theme_mode", next);
+    setThemeCookie(next);
     applyTheme(next);
   };
 
@@ -92,4 +89,26 @@ function applyTheme(mode: ThemeMode) {
     return;
   }
   root.setAttribute("data-theme", mode);
+}
+
+function readThemeCookie(): ThemeMode | null {
+  const match = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith("theme_mode="));
+  if (!match) {
+    return null;
+  }
+  const value = decodeURIComponent(match.split("=")[1] ?? "");
+  if (value === "light" || value === "dark" || value === "auto") {
+    return value;
+  }
+  return null;
+}
+
+function setThemeCookie(mode: ThemeMode) {
+  if (mode === "auto") {
+    document.cookie = "theme_mode=; path=/; max-age=0";
+    return;
+  }
+  document.cookie = `theme_mode=${mode}; path=/; max-age=31536000; samesite=lax`;
 }

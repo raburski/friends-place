@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Fraunces, Sora } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "./_components/QueryProvider";
@@ -20,31 +21,22 @@ export const metadata: Metadata = {
   description: "Prywatne miejsca od kolegów dla kolegów"
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const themeCookie = cookieStore.get("theme_mode")?.value;
+  const dataTheme =
+    themeCookie === "light" || themeCookie === "dark" ? themeCookie : undefined;
+
   return (
-    <html lang="pl" className={`${headingFont.variable} ${bodyFont.variable}`}>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function () {
-                try {
-                  var mode = localStorage.getItem('theme_mode');
-                  if (!mode || mode === 'auto') {
-                    document.documentElement.removeAttribute('data-theme');
-                    return;
-                  }
-                  document.documentElement.setAttribute('data-theme', mode);
-                } catch (e) {}
-              })();
-            `
-          }}
-        />
-      </head>
+    <html
+      lang="pl"
+      className={`${headingFont.variable} ${bodyFont.variable}`}
+      data-theme={dataTheme}
+    >
       <body>
         <QueryProvider>{children}</QueryProvider>
       </body>

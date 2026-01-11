@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { useWebApiOptions } from "../_components/useWebApiOptions";
-import { useNotificationsQuery } from "../../shared/query/hooks/useQueries";
-import { useMarkNotificationsReadMutation } from "../../shared/query/hooks/useMutations";
+import { useWebApiOptions } from "../../_components/useWebApiOptions";
+import { useNotificationsQuery } from "../../../shared/query/hooks/useQueries";
+import { useMarkNotificationsReadMutation } from "../../../shared/query/hooks/useMutations";
 
 const labels: Record<string, string> = {
   friend_accepted: "Zaproszenie przyjęte",

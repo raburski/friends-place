@@ -30,7 +30,7 @@ export async function revokeSession(token: string) {
 }
 
 export async function fetchMobileProfile(token: string) {
-  return requestJson("/api/auth/mobile", {
+  return requestJson<{ ok: boolean; data?: { profileComplete?: boolean } }>("/api/auth/mobile", {
     baseUrl: API_BASE_URL,
     headers: authHeaders(token)
   });

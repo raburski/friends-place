@@ -80,6 +80,7 @@ function TabBarButton({
   onLongPress,
   accessibilityState,
   style,
+  ref: _ref,
   ...rest
 }: BottomTabBarButtonProps) {
   const scale = usePressScale();

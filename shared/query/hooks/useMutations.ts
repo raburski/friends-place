@@ -98,6 +98,25 @@ export function useUpdateGuidesMutation(options: ApiOptions = {}) {
   });
 }
 
+export function useUploadPlaceHeadlineMutation(options: ApiOptions = {}) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { placeId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("file", payload.file);
+      return apiRequest(`/api/places/${payload.placeId}/headline`, {
+        ...options,
+        method: "POST",
+        body: formData
+      });
+    },
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.place(variables.placeId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.places() });
+    }
+  });
+}
+
 export function useUpdateProfileMutation(options: ApiOptions = {}) {
   return useMutation({
     mutationFn: (payload: { displayName: string; handle: string; locale?: string }) =>

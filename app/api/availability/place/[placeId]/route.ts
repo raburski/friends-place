@@ -30,10 +30,25 @@ export async function GET(
     orderBy: { startDate: "asc" }
   });
 
+  const bookings = await prisma.booking.findMany({
+    where: {
+      placeId,
+      status: { in: ["requested", "approved"] }
+    },
+    orderBy: { startDate: "asc" }
+  });
+
   return NextResponse.json({
     ok: true,
     data: {
       ranges,
+      bookings: bookings.map((booking) => ({
+        id: booking.id,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        status: booking.status,
+        isMine: booking.guestId === session.user.id
+      })),
       isOwner: place.ownerId === session.user.id
     }
   });

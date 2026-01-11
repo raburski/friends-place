@@ -27,7 +27,19 @@ export async function GET(request: NextRequest) {
         guestId: userId,
         ...(includeHistory ? {} : { status: { notIn: ["canceled", "declined", "completed"] } })
       },
-      orderBy: { startDate: "desc" }
+      orderBy: { startDate: "desc" },
+      include: {
+        place: {
+          select: {
+            id: true,
+            name: true,
+            headlineImageUrl: true,
+            owner: {
+              select: { id: true, displayName: true, name: true, handle: true }
+            }
+          }
+        }
+      }
     }),
     prisma.booking.findMany({
       where: {
@@ -35,7 +47,18 @@ export async function GET(request: NextRequest) {
         ...(includeHistory ? {} : { status: { notIn: ["canceled", "declined", "completed"] } })
       },
       orderBy: { startDate: "desc" },
-      include: { place: true }
+      include: {
+        place: {
+          select: {
+            id: true,
+            name: true,
+            headlineImageUrl: true,
+            owner: {
+              select: { id: true, displayName: true, name: true, handle: true }
+            }
+          }
+        }
+      }
     })
   ]);
 
