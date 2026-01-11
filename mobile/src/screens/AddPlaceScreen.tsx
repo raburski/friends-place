@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useMobileApiOptions } from "../api/useMobileApiOptions";
 import { useCreatePlaceMutation } from "../../../shared/query/hooks/useMutations";
+import { type Theme, useTheme } from "../theme";
 
 type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "AddPlace">;
 
@@ -18,6 +19,8 @@ export function AddPlaceScreen() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const apiOptions = useMobileApiOptions();
   const createMutation = useCreatePlaceMutation(apiOptions);
   const isSubmitting =
@@ -34,12 +37,14 @@ export function AddPlaceScreen() {
       <TextInput
         style={styles.input}
         placeholder="Nazwa miejsca"
+        placeholderTextColor={theme.colors.muted}
         value={name}
         onChangeText={setName}
       />
       <TextInput
         style={styles.input}
         placeholder="Adres"
+        placeholderTextColor={theme.colors.muted}
         value={address}
         onChangeText={setAddress}
       />
@@ -67,10 +72,11 @@ export function AddPlaceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f4ee",
+    backgroundColor: theme.colors.bg,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -81,24 +87,27 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Fraunces_600SemiBold",
     marginBottom: 4,
-    color: "#1b1b1b"
+    color: theme.colors.text
   },
   subtitle: {
     fontSize: 14,
-    color: "#4b4b4b",
+    color: theme.colors.muted,
     marginBottom: 8
   },
   input: {
     width: "100%",
     maxWidth: 360,
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10
+    paddingVertical: 10,
+    color: theme.colors.text,
+    borderWidth: 1,
+    borderColor: theme.colors.border
   },
   button: {
     marginTop: 8,
-    backgroundColor: "#2c7a7b",
+    backgroundColor: theme.colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999
@@ -111,7 +120,7 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
   error: {
-    color: "#b91c1c",
+    color: theme.colors.error,
     marginTop: 8
   }
-});
+  });
