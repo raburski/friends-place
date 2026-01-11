@@ -19,6 +19,7 @@ export function ProfileSetupScreen() {
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const handleInputRef = useRef<TextInput>(null);
 
   if (!session) {
@@ -26,12 +27,18 @@ export function ProfileSetupScreen() {
   }
 
   const saveProfile = async () => {
+    if (saving) {
+      return;
+    }
     setError(null);
+    setSaving(true);
     try {
       await updateProfile(session.token, { displayName, handle, locale: "pl" });
       await fetchMobileProfile(session.token);
     } catch {
       setError("Nie udało się zapisać profilu.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -58,6 +65,7 @@ export function ProfileSetupScreen() {
               returnKeyType="next"
               blurOnSubmit={false}
               onSubmitEditing={() => handleInputRef.current?.focus()}
+              editable={!saving}
             />
             <TextInput
               ref={handleInputRef}
@@ -68,9 +76,14 @@ export function ProfileSetupScreen() {
               autoCapitalize="none"
               returnKeyType="done"
               onSubmitEditing={saveProfile}
+              editable={!saving}
             />
-            <Pressable style={styles.button} onPress={saveProfile}>
-              <Text style={styles.buttonText}>Zapisz profil</Text>
+            <Pressable
+              style={[styles.button, saving ? styles.buttonDisabled : null]}
+              onPress={saveProfile}
+              disabled={saving}
+            >
+              <Text style={styles.buttonText}>{saving ? "Zapisywanie..." : "Zapisz profil"}</Text>
             </Pressable>
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
@@ -132,6 +145,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 999,
     alignItems: "center"
+  },
+  buttonDisabled: {
+    opacity: 0.7
   },
   buttonText: {
     color: "#fff",

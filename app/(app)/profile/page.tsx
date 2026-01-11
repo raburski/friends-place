@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const apiOptions = useWebApiOptions();
   const meQuery = useMeQuery(apiOptions);
@@ -167,24 +168,34 @@ export default function ProfilePage() {
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
                 placeholder="Imię / nazwa"
+                disabled={profileSaving}
               />
               <input
                 value={handle}
                 onChange={(event) => setHandle(event.target.value)}
                 placeholder="Handle"
+                disabled={profileSaving}
               />
               <button
+                disabled={profileSaving}
                 onClick={async () => {
+                  if (profileSaving) {
+                    return;
+                  }
+                  setProfileSaving(true);
+                  setError(null);
                   try {
                     await updateProfileMutation.mutateAsync({ displayName, handle, locale: "pl" });
                     setNeedsProfile(false);
                     await meQuery.refetch();
                   } catch {
                     setError("Nie udało się zapisać profilu.");
+                  } finally {
+                    setProfileSaving(false);
                   }
                 }}
               >
-                Zapisz profil
+                {profileSaving ? "Zapisywanie..." : "Zapisz profil"}
               </button>
             </div>
           </div>
