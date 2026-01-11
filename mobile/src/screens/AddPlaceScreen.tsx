@@ -20,8 +20,12 @@ export function AddPlaceScreen() {
   const [error, setError] = useState<string | null>(null);
   const apiOptions = useMobileApiOptions();
   const createMutation = useCreatePlaceMutation(apiOptions);
+  const isSubmitting =
+    (createMutation as { isPending?: boolean }).isPending ??
+    (createMutation as { isLoading?: boolean }).isLoading ??
+    false;
 
-  const canSubmit = name.trim().length > 0 && address.trim().length > 0 && !createMutation.isLoading;
+  const canSubmit = name.trim().length > 0 && address.trim().length > 0 && !isSubmitting;
 
   return (
     <View style={styles.container}>
@@ -55,7 +59,7 @@ export function AddPlaceScreen() {
         }}
       >
         <Text style={styles.buttonText}>
-          {createMutation.isLoading ? "Zapisywanie..." : "Dodaj miejsce"}
+          {isSubmitting ? "Zapisywanie..." : "Dodaj miejsce"}
         </Text>
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -9,6 +9,7 @@ type Place = {
   name: string;
   address: string;
   rules?: string | null;
+  headlineImageUrl?: string | null;
   owner?: {
     id: string;
     displayName?: string | null;
@@ -19,6 +20,14 @@ type Place = {
 
 type Availability = { id: string; startDate: string; endDate: string };
 
+type AvailabilityBooking = {
+  id: string;
+  startDate: string;
+  endDate: string;
+  status: "requested" | "approved";
+  isMine: boolean;
+};
+
 type GuideEntry = { categoryKey: string; text: string };
 
 type Booking = {
@@ -27,6 +36,7 @@ type Booking = {
   startDate: string;
   endDate: string;
   status: string;
+  place?: Place;
 };
 
 type BookingsPayload = {
@@ -88,7 +98,7 @@ export function useAvailabilityQuery(placeId: string, options: ApiQueryOptions =
   return useQuery({
     queryKey: queryKeys.availability(placeId),
     queryFn: () =>
-      apiRequest<{ ok: boolean; data: { ranges: Availability[]; isOwner: boolean } }>(
+      apiRequest<{ ok: boolean; data: { ranges: Availability[]; bookings: AvailabilityBooking[]; isOwner: boolean } }>(
         `/api/availability/place/${placeId}`,
         apiOptions
       ),

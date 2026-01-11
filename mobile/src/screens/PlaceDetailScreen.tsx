@@ -4,10 +4,10 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useSession } from "../auth/useSession";
 import { ApiError } from "../api/client";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "../utils/date";
 import { AvailabilityRange, findMatchingRange } from "../utils/availability";
 import { theme } from "../theme";
+import { InlineCalendar } from "../ui/InlineCalendar";
 import { useToast } from "../ui/ToastProvider";
 import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
 import {
@@ -25,20 +25,48 @@ import {
 
 export type PlaceDetailProps = NativeStackScreenProps<PlacesStackParamList, "PlaceDetail">;
 
+const dayStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const isSameDay = (left: Date, right: Date) =>
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
+
+const isBeforeDay = (left: Date, right: Date) => dayStart(left).getTime() < dayStart(right).getTime();
+
+const isAfterDay = (left: Date, right: Date) => dayStart(left).getTime() > dayStart(right).getTime();
+
+const formatDateLabel = (date: Date | null) =>
+  date
+    ? date.toLocaleDateString("pl-PL", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      })
+    : "—";
+
+const isDayAvailable = (day: Date, ranges: AvailabilityRange[]) => {
+  return ranges.some((range) => {
+    const start = new Date(range.startDate);
+    const end = new Date(range.endDate);
+    return dayStart(day).getTime() >= dayStart(start).getTime() && dayStart(day).getTime() <= dayStart(end).getTime();
+  });
+};
+
 export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const { session } = useSession();
   const { placeId, name } = route.params;
   const toast = useToast();
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [availability, setAvailability] = useState<AvailabilityRange[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [rules, setRules] = useState("");
   const [guides, setGuides] = useState<Record<string, string>>({});
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
   const [ownerMode, setOwnerMode] = useState(false);
-  const [newRangeStart, setNewRangeStart] = useState(new Date());
-  const [newRangeEnd, setNewRangeEnd] = useState(new Date());
+  const [newRangeStart, setNewRangeStart] = useState<Date | null>(null);
+  const [newRangeEnd, setNewRangeEnd] = useState<Date | null>(null);
   const [needsConfirm, setNeedsConfirm] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const apiOptions = useMobileApiOptions();
@@ -75,6 +103,48 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const deleteAvailabilityMutation = useDeleteAvailabilityMutation(apiOptions);
   const rulesMutation = useUpdateRulesMutation(apiOptions);
   const guidesMutation = useUpdateGuidesMutation(apiOptions);
+  const today = dayStart(new Date());
+
+  const handleBookingSelect = (date: Date) => {
+    setAvailabilityHint(null);
+    if (!startDate || endDate) {
+      setStartDate(date);
+      setEndDate(null);
+      return;
+    }
+    if (startDate && !endDate) {
+      if (isSameDay(date, startDate) || isBeforeDay(date, startDate)) {
+        setStartDate(date);
+        setEndDate(null);
+        return;
+      }
+      if (!findMatchingRange(startDate, date, availability)) {
+        setAvailabilityHint("Wybrany termin nie mieści się w dostępności.");
+        return;
+      }
+      setEndDate(date);
+    }
+  };
+
+  const handleOwnerSelect = (date: Date) => {
+    if (!newRangeStart || newRangeEnd) {
+      setNewRangeStart(date);
+      setNewRangeEnd(null);
+      return;
+    }
+    if (newRangeStart && !newRangeEnd) {
+      if (isSameDay(date, newRangeStart) || isBeforeDay(date, newRangeStart)) {
+        setNewRangeStart(date);
+        setNewRangeEnd(null);
+        return;
+      }
+      setNewRangeEnd(date);
+    }
+  };
+
+  const canRequestBooking = startDate && endDate ? isAfterDay(endDate, startDate) : false;
+  const canSaveAvailability =
+    newRangeStart && newRangeEnd ? isAfterDay(newRangeEnd, newRangeStart) : false;
 
   return (
     <View style={styles.safeArea}>
@@ -85,22 +155,37 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
         {isOwner ? null : (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Złóż prośbę o pobyt</Text>
-            <View style={styles.pickerRow}>
-              <Text style={styles.label}>Przyjazd</Text>
-              <DateTimePicker value={startDate} mode="date" onChange={(_, date) => date && setStartDate(date)} />
-            </View>
-            <View style={styles.pickerRow}>
-              <Text style={styles.label}>Wyjazd</Text>
-              <DateTimePicker value={endDate} mode="date" onChange={(_, date) => date && setEndDate(date)} />
+            <InlineCalendar
+              availability={availability}
+              selectedStart={startDate}
+              selectedEnd={endDate}
+              minDate={today}
+              isDateDisabled={(date) => !isDayAvailable(date, availability)}
+              onSelectDay={handleBookingSelect}
+            />
+            <View style={styles.selectionRow}>
+              <View style={styles.selectionItem}>
+                <Text style={styles.selectionLabel}>Przyjazd</Text>
+                <Text style={styles.selectionValue}>{formatDateLabel(startDate)}</Text>
+              </View>
+              <View style={styles.selectionItem}>
+                <Text style={styles.selectionLabel}>Wyjazd</Text>
+                <Text style={styles.selectionValue}>{formatDateLabel(endDate)}</Text>
+              </View>
             </View>
             <Pressable
-              style={styles.button}
+              disabled={!canRequestBooking}
+              style={[styles.button, !canRequestBooking && styles.buttonDisabled]}
               onPress={async () => {
                 if (!session) {
                   toast("Brak sesji.", { kind: "error" });
                   return;
                 }
                 try {
+                  if (!startDate || !endDate) {
+                    setAvailabilityHint("Wybierz daty przyjazdu i wyjazdu.");
+                    return;
+                  }
                   if (!findMatchingRange(startDate, endDate, availability)) {
                     setAvailabilityHint("Wybrany termin nie mieści się w dostępności.");
                     return;
@@ -139,27 +224,33 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
             {ownerMode ? (
               <View style={styles.ownerPanel}>
                 <Text style={styles.sectionTitle}>Nowy zakres</Text>
-                <View style={styles.pickerRow}>
-                  <Text style={styles.label}>Start</Text>
-                  <DateTimePicker
-                    value={newRangeStart}
-                    mode="date"
-                    onChange={(_, date) => date && setNewRangeStart(date)}
-                  />
-                </View>
-                <View style={styles.pickerRow}>
-                  <Text style={styles.label}>Koniec</Text>
-                  <DateTimePicker
-                    value={newRangeEnd}
-                    mode="date"
-                    onChange={(_, date) => date && setNewRangeEnd(date)}
-                  />
+                <InlineCalendar
+                  availability={availability}
+                  selectedStart={newRangeStart}
+                  selectedEnd={newRangeEnd}
+                  minDate={today}
+                  onSelectDay={handleOwnerSelect}
+                />
+                <View style={styles.selectionRow}>
+                  <View style={styles.selectionItem}>
+                    <Text style={styles.selectionLabel}>Start</Text>
+                    <Text style={styles.selectionValue}>{formatDateLabel(newRangeStart)}</Text>
+                  </View>
+                  <View style={styles.selectionItem}>
+                    <Text style={styles.selectionLabel}>Koniec</Text>
+                    <Text style={styles.selectionValue}>{formatDateLabel(newRangeEnd)}</Text>
+                  </View>
                 </View>
                 <Pressable
-                  style={styles.button}
+                  disabled={!canSaveAvailability}
+                  style={[styles.button, !canSaveAvailability && styles.buttonDisabled]}
                   onPress={async () => {
                     if (!session) {
                       toast("Brak sesji.", { kind: "error" });
+                      return;
+                    }
+                    if (!newRangeStart || !newRangeEnd) {
+                      toast("Wybierz daty dostępności.", { kind: "error" });
                       return;
                     }
                     addAvailabilityMutation.mutate(
@@ -336,15 +427,19 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
               >
                 <Text style={[styles.buttonText, styles.secondaryButtonText]}>Anuluj</Text>
               </Pressable>
-              <Pressable
-                style={styles.button}
-                onPress={async () => {
-                  if (!session) return;
-                  addAvailabilityMutation.mutate(
-                    {
-                      placeId,
-                      startDate: newRangeStart.toISOString(),
-                      endDate: newRangeEnd.toISOString(),
+                <Pressable
+                  style={styles.button}
+                  onPress={async () => {
+                    if (!session) return;
+                    if (!newRangeStart || !newRangeEnd) {
+                      toast("Wybierz daty dostępności.", { kind: "error" });
+                      return;
+                    }
+                    addAvailabilityMutation.mutate(
+                      {
+                        placeId,
+                        startDate: newRangeStart.toISOString(),
+                        endDate: newRangeEnd.toISOString(),
                       confirm: true
                     },
                     {
@@ -414,18 +509,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.muted
   },
-  pickerRow: {
-    backgroundColor: theme.colors.surfaceAlt,
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    gap: 6
-  },
-  label: {
-    fontSize: 12,
-    color: theme.colors.muted
-  },
   button: {
     backgroundColor: theme.colors.primary,
     paddingVertical: 10,
@@ -433,6 +516,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
     alignItems: "center",
     alignSelf: "flex-start"
+  },
+  buttonDisabled: {
+    opacity: 0.6
   },
   buttonText: {
     color: "#fff",
@@ -453,6 +539,25 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surfaceAlt,
     gap: 12
+  },
+  selectionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12
+  },
+  selectionItem: {
+    gap: 4
+  },
+  selectionLabel: {
+    fontSize: 11,
+    color: theme.colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6
+  },
+  selectionValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.text
   },
   rulesBox: {
     backgroundColor: theme.colors.surfaceAlt,

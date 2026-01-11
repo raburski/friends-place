@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { useWebApiOptions } from "../_components/useWebApiOptions";
-import { useBookingsQuery } from "../../shared/query/hooks/useQueries";
-import { useApproveBookingMutation, useDeclineBookingMutation } from "../../shared/query/hooks/useMutations";
+import { useWebApiOptions } from "../../_components/useWebApiOptions";
+import { useBookingsQuery } from "../../../shared/query/hooks/useQueries";
+import { useApproveBookingMutation, useDeclineBookingMutation } from "../../../shared/query/hooks/useMutations";
 
 type Booking = {
   id: string;
@@ -11,12 +11,46 @@ type Booking = {
   endDate: string;
   status: string;
   placeId: string;
+  place?: {
+    id: string;
+    name: string;
+    headlineImageUrl?: string | null;
+    owner?: {
+      id: string;
+      displayName?: string | null;
+      name?: string | null;
+      handle?: string | null;
+    };
+  };
 };
+
+type Owner = NonNullable<NonNullable<Booking["place"]>["owner"]>;
 
 type BookingsPayload = {
   myStays: Booking[];
   atMyPlaces: Booking[];
 };
+
+const formatDateLabel = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString("pl-PL", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+};
+
+const formatDateRange = (startDate: string, endDate: string) =>
+  `${formatDateLabel(startDate)} → ${formatDateLabel(endDate)}`;
+
+const formatOwnerLabel = (owner?: Owner) =>
+  owner?.displayName?.trim() ||
+  owner?.name?.trim() ||
+  (owner?.handle ? `@${owner.handle}` : "") ||
+  "Nieznany";
 
 export default function BookingsPage() {
   const apiOptions = useWebApiOptions();
@@ -36,6 +70,14 @@ export default function BookingsPage() {
 
   const approveMutation = useApproveBookingMutation(apiOptions);
   const declineMutation = useDeclineBookingMutation(apiOptions);
+  const approveIsPending =
+    (approveMutation as { isPending?: boolean }).isPending ??
+    (approveMutation as { isLoading?: boolean }).isLoading ??
+    false;
+  const declineIsPending =
+    (declineMutation as { isPending?: boolean }).isPending ??
+    (declineMutation as { isLoading?: boolean }).isLoading ??
+    false;
 
   const allBookings = [
     ...data.myStays.map((booking) => ({ ...booking, source: "my" as const })),
@@ -63,13 +105,13 @@ export default function BookingsPage() {
     }
   ];
 
+  const sourceLabel = (source: "my" | "host" | "history") =>
+    source === "host" ? "U mnie" : "Mój pobyt";
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
         <h1 className="page-title">Rezerwacje</h1>
-        <button className="secondary-button" type="button">
-          Nowa prośba
-        </button>
       </div>
       {error ? <p className="muted">{error}</p> : null}
       <div className="kanban">
@@ -83,32 +125,60 @@ export default function BookingsPage() {
               <p className="muted">Brak wpisów.</p>
             ) : (
               column.items.map((booking) => (
-                <div key={booking.id} className="kanban-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <strong>{booking.startDate} → {booking.endDate}</strong>
-                    <span className="pill">
-                      {booking.source === "host" ? "U mnie" : "Mój pobyt"}
-                    </span>
+                <div key={booking.id} className="booking-card" data-status={booking.status}>
+                  <div className="booking-card__media">
+                    {booking.place?.headlineImageUrl ? (
+                      <img
+                        src={booking.place.headlineImageUrl}
+                        alt={`Zdjęcie miejsca ${booking.place?.name ?? ""}`}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="booking-card__media-placeholder">Brak zdjęcia</div>
+                    )}
                   </div>
-                  <div className="muted">Miejsce: {booking.placeId}</div>
-                  <div className="muted">Status: {booking.status}</div>
-                  {booking.source === "host" && booking.status === "requested" ? (
-                    <div className="action-bar">
-                      <button
-                        onClick={() => approveMutation.mutate(booking.id)}
-                        disabled={approveMutation.isLoading}
-                      >
-                        Akceptuj
-                      </button>
-                      <button
-                        className="secondary-button"
-                        onClick={() => declineMutation.mutate(booking.id)}
-                        disabled={declineMutation.isLoading}
-                      >
-                        Odrzuć
-                      </button>
+                  <div className="booking-card__content">
+                    <div className="booking-card__header">
+                      <div className="booking-card__header-main">
+                        <strong className="booking-card__dates">
+                          {formatDateRange(booking.startDate, booking.endDate)}
+                        </strong>
+                        <span className="booking-source">{sourceLabel(booking.source)}</span>
+                      </div>
+                      <span className="booking-status">{booking.status}</span>
                     </div>
-                  ) : null}
+                    <div className="booking-card__meta">
+                      <div className="booking-card__meta-item">
+                        <span className="booking-card__meta-label">Miejsce</span>
+                        <span className="booking-card__meta-value">
+                          {booking.place?.name ?? "Nieznane miejsce"}
+                        </span>
+                      </div>
+                      <div className="booking-card__meta-item">
+                        <span className="booking-card__meta-label">Gospodarz</span>
+                        <span className="booking-card__meta-value">
+                          {formatOwnerLabel(booking.place?.owner)}
+                        </span>
+                      </div>
+                    </div>
+                    {booking.source === "host" && booking.status === "requested" ? (
+                      <div className="action-bar">
+                        <button
+                          onClick={() => approveMutation.mutate(booking.id)}
+                          disabled={approveIsPending}
+                        >
+                          Akceptuj
+                        </button>
+                        <button
+                          className="secondary-button"
+                          onClick={() => declineMutation.mutate(booking.id)}
+                          disabled={declineIsPending}
+                        >
+                          Odrzuć
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ))
             )}

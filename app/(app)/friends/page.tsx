@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { Copy, Trash } from "@phosphor-icons/react";
-import { useWebApiOptions } from "../_components/useWebApiOptions";
-import { useFriendsQuery, useInvitesQuery } from "../../shared/query/hooks/useQueries";
-import { useRevokeInviteMutation, useUnfriendMutation } from "../../shared/query/hooks/useMutations";
+import { useWebApiOptions } from "../../_components/useWebApiOptions";
+import { useFriendsQuery, useInvitesQuery } from "../../../shared/query/hooks/useQueries";
+import { useRevokeInviteMutation, useUnfriendMutation } from "../../../shared/query/hooks/useMutations";
 
 type Friend = { friendshipId: string; friendId: string; handle?: string; displayName?: string };
 

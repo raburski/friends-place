@@ -7,9 +7,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "./api";
 import { Bell, CalendarBlank, GearSix, House, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { Toaster } from "react-hot-toast";
-import { useWebApiOptions } from "./useWebApiOptions";
-import { useMeQuery, useNotificationsQuery } from "../../shared/query/hooks/useQueries";
-import { useUpdateProfileMutation } from "../../shared/query/hooks/useMutations";
+import { useWebApiOptions } from "../../_components/useWebApiOptions";
+import { useMeQuery, useNotificationsQuery } from "../../../shared/query/hooks/useQueries";
+import { useUpdateProfileMutation } from "../../../shared/query/hooks/useMutations";
 
 const links = [
   { href: "/places", label: "Miejsca", Icon: House },

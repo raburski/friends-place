@@ -51,7 +51,12 @@ export async function POST(request: NextRequest) {
       startDate: new Date(range.startDate),
       endDate: new Date(range.endDate)
     }))
-    .filter((range) => !Number.isNaN(range.startDate.getTime()) && !Number.isNaN(range.endDate.getTime()));
+    .filter(
+      (range) =>
+        !Number.isNaN(range.startDate.getTime()) &&
+        !Number.isNaN(range.endDate.getTime()) &&
+        range.endDate > range.startDate
+    );
 
   if (data.length === 0) {
     return NextResponse.json(
@@ -85,9 +90,36 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const created = await prisma.availabilityRange.createMany({
-    data
+  const existingRanges = await prisma.availabilityRange.findMany({
+    where: { placeId },
+    orderBy: { startDate: "asc" }
   });
+
+  const mergedRanges = [...existingRanges, ...data]
+    .map((range) => ({
+      placeId,
+      startDate: new Date(range.startDate),
+      endDate: new Date(range.endDate)
+    }))
+    .sort((left, right) => left.startDate.getTime() - right.startDate.getTime())
+    .reduce<Array<{ placeId: string; startDate: Date; endDate: Date }>>((acc, current) => {
+      const last = acc[acc.length - 1];
+      if (!last) {
+        acc.push(current);
+        return acc;
+      }
+      if (current.startDate <= last.endDate) {
+        last.endDate = new Date(Math.max(last.endDate.getTime(), current.endDate.getTime()));
+        return acc;
+      }
+      acc.push(current);
+      return acc;
+    }, []);
+
+  await prisma.$transaction([
+    prisma.availabilityRange.deleteMany({ where: { placeId } }),
+    prisma.availabilityRange.createMany({ data: mergedRanges })
+  ]);
 
   if (conflictBookings.length > 0) {
     await Promise.all(
@@ -103,5 +135,5 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ ok: true, data: created });
+  return NextResponse.json({ ok: true, data: { mergedCount: mergedRanges.length } });
 }
