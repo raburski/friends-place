@@ -7,7 +7,7 @@ export default function Home() {
         <div className="hero-content">
           <span className="badge">Domy Kolegów</span>
           <h1>
-            Prywatne miejsce na chatę twoją, i twojego kolegi.
+            Prywatne miejsce na dom twój, i twojego kolegi.
           </h1>
           <p className="subtitle">
             Domy Kolegów to spokojna platforma dla znajomych, którzy chcą

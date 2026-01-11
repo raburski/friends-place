@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { theme } from "../theme";
+import { type Theme, useTheme } from "../theme";
 
 type ToastKind = "success" | "error" | "info";
 
@@ -22,6 +22,8 @@ const ToastContext = createContext<ToastContextValue>(() => {});
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [toast, setToast] = useState<ToastState | null>(null);
 
@@ -110,7 +112,8 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   toastContainer: {
     position: "absolute",
     left: 16,
@@ -149,4 +152,4 @@ const styles = StyleSheet.create({
   toastTextInfo: {
     color: theme.colors.text
   }
-});
+  });

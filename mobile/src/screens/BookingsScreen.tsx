@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatDate } from "../utils/date";
-import { theme } from "../theme";
+import { type Theme, useTheme } from "../theme";
 import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
 import { useBookingsQuery } from "../../../shared/query/hooks/useQueries";
 import { useApproveBookingMutation, useDeclineBookingMutation } from "../../../shared/query/hooks/useMutations";
@@ -17,6 +17,8 @@ type Booking = {
 
 export function BookingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const apiOptions = useMobileApiOptions();
   const apiQueryOptions = useMobileApiQueryOptions();
   const currentQuery = useBookingsQuery("current", apiQueryOptions);
@@ -53,7 +55,14 @@ export function BookingsScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
       >
         <View style={styles.headerRow}>
           <Text style={styles.title}>Rezerwacje</Text>
@@ -168,7 +177,8 @@ export function BookingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.bg
@@ -243,19 +253,19 @@ const styles = StyleSheet.create({
     textTransform: "uppercase"
   },
   status_requested: {
-    backgroundColor: "rgba(217, 119, 6, 0.16)"
+    backgroundColor: theme.colors.accentSoft
   },
   status_approved: {
-    backgroundColor: "rgba(44, 122, 123, 0.16)"
+    backgroundColor: theme.colors.primarySoft
   },
   status_declined: {
-    backgroundColor: "rgba(185, 28, 28, 0.12)"
+    backgroundColor: theme.colors.errorSoft
   },
   status_canceled: {
-    backgroundColor: "rgba(75, 75, 75, 0.12)"
+    backgroundColor: theme.colors.mutedSoft
   },
   status_completed: {
-    backgroundColor: "rgba(44, 122, 123, 0.12)"
+    backgroundColor: theme.colors.primarySoft
   },
   statusText_requested: {
     color: theme.colors.accent
@@ -296,4 +306,4 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: theme.colors.accent
   }
-});
+  });

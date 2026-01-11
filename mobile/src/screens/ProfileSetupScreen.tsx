@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSession } from "../auth/useSession";
 import { updateProfile, fetchMobileProfile } from "../auth/api";
+import { type Theme, useTheme } from "../theme";
 
 export function ProfileSetupScreen() {
   const { session } = useSession();
@@ -20,6 +21,8 @@ export function ProfileSetupScreen() {
   const [handle, setHandle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const handleInputRef = useRef<TextInput>(null);
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   if (!session) {
     return null;
@@ -53,6 +56,7 @@ export function ProfileSetupScreen() {
             <TextInput
               style={styles.input}
               placeholder="Imię / nazwa"
+              placeholderTextColor={theme.colors.muted}
               value={displayName}
               onChangeText={setDisplayName}
               returnKeyType="next"
@@ -63,6 +67,7 @@ export function ProfileSetupScreen() {
               ref={handleInputRef}
               style={styles.input}
               placeholder="handle (np. marek_krk)"
+              placeholderTextColor={theme.colors.muted}
               value={handle}
               onChangeText={setHandle}
               autoCapitalize="none"
@@ -80,10 +85,11 @@ export function ProfileSetupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f7f4ee"
+    backgroundColor: theme.colors.bg
   },
   container: {
     flexGrow: 1,
@@ -94,40 +100,41 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadow.soft
   },
   title: {
     fontSize: 24,
     fontWeight: "600",
     fontFamily: "Fraunces_600SemiBold",
     marginBottom: 8,
-    color: "#1b1b1b"
+    color: theme.colors.text
   },
   subtitle: {
     fontSize: 14,
     textAlign: "center",
-    color: "#4b4b4b",
+    color: theme.colors.muted,
     marginBottom: 8
   },
   input: {
     width: "100%",
-    backgroundColor: "#f7f4ee",
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    marginTop: 12
+    marginTop: 12,
+    color: theme.colors.text,
+    borderWidth: 1,
+    borderColor: theme.colors.border
   },
   button: {
     marginTop: 18,
-    backgroundColor: "#2c7a7b",
+    backgroundColor: theme.colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 999,
@@ -138,8 +145,8 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
   error: {
-    color: "#b91c1c",
+    color: theme.colors.error,
     marginTop: 12,
     textAlign: "center"
   }
-});
+  });

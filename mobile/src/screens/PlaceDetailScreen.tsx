@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Modal, TextInput, ScrollView } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
@@ -6,7 +6,7 @@ import { useSession } from "../auth/useSession";
 import { ApiError } from "../api/client";
 import { formatDate } from "../utils/date";
 import { AvailabilityRange, findMatchingRange } from "../utils/availability";
-import { theme } from "../theme";
+import { type Theme, useTheme } from "../theme";
 import { InlineCalendar } from "../ui/InlineCalendar";
 import { useToast } from "../ui/ToastProvider";
 import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
@@ -56,6 +56,8 @@ const isDayAvailable = (day: Date, ranges: AvailabilityRange[]) => {
 export function PlaceDetailScreen({ route }: PlaceDetailProps) {
   const { session } = useSession();
   const { placeId, name } = route.params;
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const toast = useToast();
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -337,6 +339,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                 <TextInput
                   style={styles.rulesInput}
                   placeholder="Dodaj zasady domu..."
+                  placeholderTextColor={theme.colors.muted}
                   value={rules}
                   onChangeText={setRules}
                   multiline
@@ -371,6 +374,7 @@ export function PlaceDetailScreen({ route }: PlaceDetailProps) {
                 <TextInput
                   style={styles.rulesInput}
                   placeholder="Dodaj wskazówki..."
+                  placeholderTextColor={theme.colors.muted}
                   value={guides[item.key] ?? ""}
                   onChangeText={(value) =>
                     setGuides((current) => ({
@@ -471,7 +475,8 @@ const GUIDE_LABELS = [
   { key: "operate", label: "Jak obsługiwać" }
 ];
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.bg
@@ -586,7 +591,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: theme.colors.scrim,
     alignItems: "center",
     justifyContent: "center",
     padding: 24
@@ -646,7 +651,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: theme.radius.pill,
-    backgroundColor: "rgba(44, 122, 123, 0.16)"
+    backgroundColor: theme.colors.primarySoft
   },
   useButtonText: {
     color: theme.colors.primary,
@@ -657,7 +662,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: theme.radius.pill,
-    backgroundColor: "rgba(185, 28, 28, 0.12)"
+    backgroundColor: theme.colors.errorSoft
   },
   deleteButtonText: {
     color: theme.colors.error,
@@ -668,4 +673,4 @@ const styles = StyleSheet.create({
     color: theme.colors.accent,
     fontSize: 12
   },
-});
+  });

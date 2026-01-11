@@ -5,7 +5,7 @@ import { useMobileApiQueryOptions } from "../api/useMobileApiOptions";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { theme } from "../theme";
+import { type Theme, useTheme } from "../theme";
 import { useMeQuery, usePlacesQuery } from "../../../shared/query/hooks/useQueries";
 
 type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "PlacesList">;
@@ -13,6 +13,8 @@ type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "PlacesList">;
 export function PlacesScreen() {
   const navigation = useNavigation<PlacesNav>();
   const [refreshing, setRefreshing] = useState(false);
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const apiQueryOptions = useMobileApiQueryOptions();
   const meQuery = useMeQuery(apiQueryOptions);
   const placesQuery = usePlacesQuery(apiQueryOptions);
@@ -41,7 +43,14 @@ export function PlacesScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
       >
         <View style={styles.headerRow}>
           <Text style={styles.title}>Miejsca</Text>
@@ -115,7 +124,8 @@ export function PlacesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.bg
@@ -218,7 +228,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: theme.radius.pill,
-    backgroundColor: "rgba(44, 122, 123, 0.14)"
+    backgroundColor: theme.colors.primarySoft
   },
   pillText: {
     fontSize: 12,
@@ -231,4 +241,4 @@ const styles = StyleSheet.create({
   muted: {
     color: theme.colors.muted
   }
-});
+  });

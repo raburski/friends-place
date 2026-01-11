@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable, Share, ScrollView, Alert } from "react-native";
 import { API_BASE_URL } from "../config";
-import { theme } from "../theme";
+import { type Theme, useTheme } from "../theme";
 import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
 import { useFriendsQuery, useInvitesQuery } from "../../../shared/query/hooks/useQueries";
 import { useRevokeInviteMutation, useUnfriendMutation } from "../../../shared/query/hooks/useMutations";
@@ -9,6 +9,8 @@ import { useRevokeInviteMutation, useUnfriendMutation } from "../../../shared/qu
 export function FriendsScreen() {
   const apiOptions = useMobileApiOptions();
   const apiQueryOptions = useMobileApiQueryOptions();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const friendsQuery = useFriendsQuery(apiQueryOptions);
   const invitesQuery = useInvitesQuery(apiQueryOptions);
   const unfriendMutation = useUnfriendMutation(apiOptions);
@@ -130,7 +132,8 @@ export function FriendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.bg
@@ -248,4 +251,4 @@ const styles = StyleSheet.create({
   error: {
     color: theme.colors.error
   }
-});
+  });

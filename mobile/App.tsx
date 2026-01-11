@@ -9,8 +9,10 @@ import { NotificationsProvider } from "./src/notifications/NotificationsProvider
 import { ToastProvider } from "./src/ui/ToastProvider";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryProvider } from "./src/api/QueryProvider";
+import { ThemeProvider, useTheme } from "./src/theme";
 
-export default function App() {
+function AppContent() {
+  const theme = useTheme();
   const [soraLoaded] = useSoraFonts({
     Sora_400Regular,
     Sora_600SemiBold
@@ -50,11 +52,19 @@ export default function App() {
           <NotificationsProvider>
             <ToastProvider>
               <RootNavigator />
-              <StatusBar style="auto" />
+              <StatusBar style={theme.mode === "dark" ? "light" : "dark"} backgroundColor={theme.colors.bg} />
             </ToastProvider>
           </NotificationsProvider>
         </SessionProvider>
       </QueryProvider>
     </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }

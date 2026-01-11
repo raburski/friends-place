@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
-import { theme } from "../theme";
+import { type Theme, useTheme } from "../theme";
 import { availabilityColors } from "../../../shared/theme/availabilityColors";
 
 export type CalendarRange = { startDate: string; endDate: string };
@@ -78,6 +78,8 @@ export function InlineCalendar({
   minDate,
   isDateDisabled
 }: InlineCalendarProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const today = dayStart(new Date());
   const minDay = minDate ? dayStart(minDate) : today;
   const [monthOffset, setMonthOffset] = useState(0);
@@ -164,7 +166,8 @@ export function InlineCalendar({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   container: {
     gap: 12
   },
@@ -290,4 +293,4 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.accent
   }
-});
+  });

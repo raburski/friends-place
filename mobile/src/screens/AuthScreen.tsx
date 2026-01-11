@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Modal, SafeAreaView } from "react-native";
 import { WebView } from "react-native-webview";
 import { useSession } from "../auth/useSession";
 import { API_BASE_URL } from "../config";
+import { type Theme, useTheme } from "../theme";
 
 export function AuthScreen() {
   const { setSessionData } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState(false);
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const apiBase = API_BASE_URL;
 
@@ -49,10 +52,11 @@ export function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f4ee",
+    backgroundColor: theme.colors.bg,
     alignItems: "center",
     justifyContent: "center",
     padding: 24
@@ -62,16 +66,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Fraunces_600SemiBold",
     marginBottom: 8,
-    color: "#1b1b1b"
+    color: theme.colors.text
   },
   subtitle: {
     fontSize: 14,
     textAlign: "center",
-    color: "#4b4b4b"
+    color: theme.colors.muted
   },
   button: {
     marginTop: 16,
-    backgroundColor: "#2c7a7b",
+    backgroundColor: theme.colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 999
@@ -81,19 +85,19 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
   error: {
-    color: "#b91c1c",
+    color: theme.colors.error,
     marginTop: 12
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "#fff"
+    backgroundColor: theme.colors.bg
   },
   modalHeader: {
     paddingTop: 8,
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e0d5",
+    borderBottomColor: theme.colors.border,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between"
@@ -101,10 +105,11 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "600",
-    fontFamily: "Fraunces_600SemiBold"
+    fontFamily: "Fraunces_600SemiBold",
+    color: theme.colors.text
   },
   modalClose: {
-    color: "#2c7a7b",
+    color: theme.colors.primary,
     fontWeight: "600"
   }
-});
+  });

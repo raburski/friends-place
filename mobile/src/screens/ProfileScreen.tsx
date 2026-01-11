@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { theme } from "../theme";
+import { type Theme, useTheme } from "../theme";
 import type { ProfileStackParamList } from "../navigation/ProfileStack";
 import { CaretRight, Gear } from "phosphor-react-native";
 import { useMobileApiQueryOptions } from "../api/useMobileApiOptions";
@@ -12,6 +12,8 @@ import { useFriendsQuery, useMeQuery } from "../../../shared/query/hooks/useQuer
 export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList, "ProfileHome">>();
   const apiQueryOptions = useMobileApiQueryOptions();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const meQuery = useMeQuery(apiQueryOptions);
   const friendsQuery = useFriendsQuery(apiQueryOptions);
 
@@ -54,7 +56,8 @@ export function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.bg
@@ -131,4 +134,4 @@ const styles = StyleSheet.create({
   error: {
     color: theme.colors.error
   }
-});
+  });

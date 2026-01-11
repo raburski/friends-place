@@ -1,5 +1,5 @@
 import { BottomTabBarButtonProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Animated, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PlacesStack } from "./PlacesStack";
@@ -7,7 +7,7 @@ import { BookingsScreen } from "../screens/BookingsScreen";
 import { ProfileStack } from "./ProfileStack";
 import { useNotifications } from "../notifications/NotificationsProvider";
 import { CalendarBlank, House, UserCircle } from "phosphor-react-native";
-import { theme } from "../theme";
+import { type Theme, useTheme } from "../theme";
 
 export type MainTabsParamList = {
   Places: undefined;
@@ -16,10 +16,18 @@ export type MainTabsParamList = {
 };
 
 const Tab = createBottomTabNavigator<MainTabsParamList>();
+const pressableStyles = StyleSheet.create({
+  pressableInner: {
+    alignItems: "center",
+    justifyContent: "center"
+  }
+});
 
 export function MainTabs() {
   const { unreadCount } = useNotifications();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Tab.Navigator
       screenOptions={{
@@ -94,7 +102,7 @@ function TabBarButton({
       style={style}
       {...rest}
     >
-      <Animated.View style={[styles.pressableInner, { transform: [{ scale: scale.value }] }]}>
+      <Animated.View style={[pressableStyles.pressableInner, { transform: [{ scale: scale.value }] }]}>
         {children}
       </Animated.View>
     </Pressable>
@@ -122,7 +130,8 @@ function usePressScale() {
   return { value, handlePressIn, handlePressOut };
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   tabBar: {
     backgroundColor: theme.colors.surface,
     borderTopColor: theme.colors.border,
@@ -150,8 +159,4 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.surfaceAlt,
     borderWidth: 1
   },
-  pressableInner: {
-    alignItems: "center",
-    justifyContent: "center"
-  }
-});
+  });

@@ -1,15 +1,44 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useMemo } from "react";
 import { useSession } from "../auth/useSession";
-import { theme } from "../theme";
+import { type Theme, type ThemePreference, useTheme, useThemePreference } from "../theme";
+
+const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Jasny" },
+  { value: "dark", label: "Ciemny" }
+];
 
 export function SettingsScreen() {
   const { revoke } = useSession();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { preference, setPreference } = useThemePreference();
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Ustawienia</Text>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Wygląd</Text>
+          <View style={styles.themeOptions}>
+            {THEME_OPTIONS.map((option) => {
+              const selected = preference === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[styles.themeOption, selected && styles.themeOptionActive]}
+                  onPress={() => setPreference(option.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                >
+                  <Text style={[styles.themeOptionText, selected && styles.themeOptionTextActive]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Konto</Text>
           <Text style={styles.muted}>Zarządzaj swoim kontem i sesją.</Text>
@@ -18,11 +47,12 @@ export function SettingsScreen() {
           <Text style={styles.primaryButtonText}>Wyloguj</Text>
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.bg
@@ -31,15 +61,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    paddingTop: 0,
+    paddingTop: 12,
     gap: 16,
     backgroundColor: theme.colors.bg
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "600",
-    fontFamily: "Fraunces_600SemiBold",
-    color: theme.colors.text
   },
   sectionCard: {
     padding: 16,
@@ -55,6 +79,35 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.text,
     fontFamily: "Fraunces_600SemiBold"
+  },
+  themeOptions: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap"
+  },
+  themeOption: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.border
+  },
+  themeOptionActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
+  },
+  themeOptionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.text
+  },
+  themeOptionTextActive: {
+    color: "#fff"
+  },
+  helperText: {
+    fontSize: 12,
+    color: theme.colors.muted
   },
   muted: {
     fontSize: 14,
@@ -73,4 +126,4 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600"
   }
-});
+  });
