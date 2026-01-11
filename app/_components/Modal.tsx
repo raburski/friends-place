@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { IconButton } from "./Button";
+import { X } from "@phosphor-icons/react";
 
 type ModalSize = "sm" | "md" | "lg";
 
@@ -96,21 +98,11 @@ export function Modal({
           <div className="modal-header">
             {title ? <h2 className="section-title">{title}</h2> : <span />}
             {showCloseButton ? (
-              <button
-                type="button"
-                className="icon-button"
+              <IconButton
+                label="Zamknij"
+                icon={<X size={18} weight="bold" />}
                 onClick={handleClose}
-                aria-label="Zamknij"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M6 6l12 12M18 6l-12 12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
+              />
             ) : null}
           </div>
         ) : null}

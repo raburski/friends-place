@@ -6,6 +6,9 @@ import { useWebApiOptions } from "../../_components/useWebApiOptions";
 import { Modal } from "../../_components/Modal";
 import { useMeQuery } from "../../../shared/query/hooks/useQueries";
 import { useUpdateProfileMutation } from "../../../shared/query/hooks/useMutations";
+import { Button } from "../../_components/Button";
+import { SectionCard } from "../../_components/SectionCard";
+import { ScreenLayout } from "../../_components/ScreenLayout";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<{ displayName?: string; handle?: string } | null>(null);
@@ -61,19 +64,17 @@ export default function ProfilePage() {
     trimmedEditName !== (profile?.displayName ?? "");
 
   return (
-    <div>
-      <h1 className="page-title">Profil</h1>
+    <ScreenLayout title="Profil">
       {error ? <p className="muted">{error}</p> : null}
-      <div className="card">
+      <SectionCard>
         <div style={{ display: "grid", gap: 10 }}>
           <div>
             <strong>{profile?.displayName ?? "Brak nazwy"}</strong>
             <div className="muted">@{profile?.handle ?? "bez_handle"}</div>
           </div>
           <div className="action-bar">
-            <button
-              type="button"
-              className="secondary-button"
+            <Button
+              variant="secondary"
               disabled={!profile?.handle}
               onClick={() => {
                 setEditDisplayName(profile?.displayName ?? "");
@@ -82,10 +83,10 @@ export default function ProfilePage() {
               }}
             >
               Zmień nazwę
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </SectionCard>
       <Modal
         isOpen={editNameOpen}
         onClose={() => {
@@ -106,9 +107,10 @@ export default function ProfilePage() {
         />
         {editError ? <p className="muted">{editError}</p> : null}
         <div className="action-bar">
-          <button
-            type="button"
+          <Button
             disabled={!canSaveEditName}
+            loading={editSaving}
+            loadingLabel="Zapisywanie..."
             onClick={async () => {
               if (!trimmedEditName) {
                 setEditError("Podaj nazwę.");
@@ -141,11 +143,10 @@ export default function ProfilePage() {
               }
             }}
           >
-            {editSaving ? "Zapisywanie..." : "Zapisz nazwę"}
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
+            Zapisz nazwę
+          </Button>
+          <Button
+            variant="secondary"
             disabled={editSaving}
             onClick={() => {
               setEditNameOpen(false);
@@ -154,7 +155,7 @@ export default function ProfilePage() {
             }}
           >
             Anuluj
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -176,8 +177,9 @@ export default function ProfilePage() {
                 placeholder="Handle"
                 disabled={profileSaving}
               />
-              <button
-                disabled={profileSaving}
+              <Button
+                loading={profileSaving}
+                loadingLabel="Zapisywanie..."
                 onClick={async () => {
                   if (profileSaving) {
                     return;
@@ -195,13 +197,13 @@ export default function ProfilePage() {
                   }
                 }}
               >
-                {profileSaving ? "Zapisywanie..." : "Zapisz profil"}
-              </button>
+                Zapisz profil
+              </Button>
             </div>
           </div>
         </div>
       ) : null}
 
-    </div>
+    </ScreenLayout>
   );
 }

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   ScrollView,
@@ -14,6 +13,7 @@ import {
 import { useSession } from "../auth/useSession";
 import { updateProfile, fetchMobileProfile } from "../auth/api";
 import { type Theme, useTheme } from "../theme";
+import { Button } from "../ui/Button";
 
 export function ProfileSetupScreen() {
   const { session } = useSession();
@@ -83,13 +83,13 @@ export function ProfileSetupScreen() {
               onSubmitEditing={saveProfile}
               editable={!saving}
             />
-            <Pressable
-              style={[styles.button, saving ? styles.buttonDisabled : null]}
+            <Button
+              label="Zapisz profil"
+              loading={saving}
+              loadingLabel="Zapisywanie..."
+              style={styles.submitButton}
               onPress={saveProfile}
-              disabled={saving}
-            >
-              <Text style={styles.buttonText}>{saving ? "Zapisywanie..." : "Zapisz profil"}</Text>
-            </Pressable>
+            />
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         </ScrollView>
@@ -145,20 +145,8 @@ const createStyles = (theme: Theme) =>
     borderWidth: 1,
     borderColor: theme.colors.border
   },
-  button: {
-    marginTop: 18,
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    alignItems: "center"
-  },
-  buttonDisabled: {
-    opacity: 0.7
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600"
+  submitButton: {
+    marginTop: 18
   },
   error: {
     color: theme.colors.error,

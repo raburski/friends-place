@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useWebApiOptions } from "../../../_components/useWebApiOptions";
 import { Modal } from "../../../_components/Modal";
+import { Button } from "../../../_components/Button";
+import { SectionCard } from "../../../_components/SectionCard";
 import { AvailabilityCalendar, AvailabilityRange } from "./AvailabilityCalendar";
 import {
   useAvailabilityQuery,
@@ -152,6 +154,22 @@ export default function PlaceDetailPage() {
   const isUploadingHeadline =
     (uploadHeadlineMutation as { isPending?: boolean }).isPending ??
     (uploadHeadlineMutation as { isLoading?: boolean }).isLoading ??
+    false;
+  const bookingIsPending =
+    (bookingMutation as { isPending?: boolean }).isPending ??
+    (bookingMutation as { isLoading?: boolean }).isLoading ??
+    false;
+  const addAvailabilityIsPending =
+    (addAvailabilityMutation as { isPending?: boolean }).isPending ??
+    (addAvailabilityMutation as { isLoading?: boolean }).isLoading ??
+    false;
+  const rulesIsPending =
+    (rulesMutation as { isPending?: boolean }).isPending ??
+    (rulesMutation as { isLoading?: boolean }).isLoading ??
+    false;
+  const guidesIsPending =
+    (guidesMutation as { isPending?: boolean }).isPending ??
+    (guidesMutation as { isLoading?: boolean }).isLoading ??
     false;
 
   useEffect(() => {
@@ -304,9 +322,10 @@ export default function PlaceDetailPage() {
             />
             {headlineError ? <p className="muted">{headlineError}</p> : null}
             <div className="action-bar">
-              <button
-                type="button"
+              <Button
                 disabled={!headlineFile || isUploadingHeadline}
+                loading={isUploadingHeadline}
+                loadingLabel="Wysyłanie..."
                 onClick={() => {
                   if (!headlineFile) {
                     return;
@@ -325,18 +344,10 @@ export default function PlaceDetailPage() {
                   );
                 }}
               >
-                {isUploadingHeadline ? (
-                  <>
-                    <span className="button-spinner" aria-hidden="true" />
-                    Wysyłanie...
-                  </>
-                ) : (
-                  "Wyślij zdjęcie"
-                )}
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
+                Wyślij zdjęcie
+              </Button>
+              <Button
+                variant="secondary"
                 disabled={!headlineFile || isUploadingHeadline}
                 onClick={() => {
                   setHeadlineFile(null);
@@ -345,7 +356,7 @@ export default function PlaceDetailPage() {
                 }}
               >
                 Wyczyść
-              </button>
+              </Button>
             </div>
             <p className="muted">Obsługiwane formaty: JPG, PNG, WebP, AVIF (do 5 MB).</p>
           </div>
@@ -353,8 +364,7 @@ export default function PlaceDetailPage() {
       </Modal>
       <div className="place-details-stack">
           {isOwner ? null : (
-            <div className="card">
-              <h2 className="section-title">Prośba o pobyt</h2>
+            <SectionCard title="Prośba o pobyt">
               <div className="availability-panel">
                 <div className="availability-panel__calendar">
                   <AvailabilityCalendar
@@ -399,8 +409,10 @@ export default function PlaceDetailPage() {
                         <span className="availability-selection__value">{formatDateLabel(bookingEnd)}</span>
                       </div>
                     </div>
-                    <button
+                    <Button
                       disabled={!canRequestBooking}
+                      loading={bookingIsPending}
+                      loadingLabel="Wysyłanie..."
                       onClick={() => {
                         if (!bookingStart || !bookingEnd) {
                           setAvailabilityHint("Wybierz daty przyjazdu i wyjazdu.");
@@ -427,17 +439,16 @@ export default function PlaceDetailPage() {
                       }}
                     >
                       Wyślij
-                    </button>
+                    </Button>
                     {availabilityHint ? <p className="muted">{availabilityHint}</p> : null}
                   </div>
                 </div>
               </div>
-            </div>
+            </SectionCard>
           )}
 
           {isOwner ? (
-            <div className="card">
-              <h2 className="section-title">Dodaj dostępność</h2>
+            <SectionCard title="Dodaj dostępność">
               <div className="availability-panel">
                 <div className="availability-panel__calendar">
                   <AvailabilityCalendar
@@ -467,8 +478,10 @@ export default function PlaceDetailPage() {
                         </span>
                       </div>
                     </div>
-                    <button
+                    <Button
                       disabled={!canSaveAvailability}
+                      loading={addAvailabilityIsPending}
+                      loadingLabel="Zapisywanie..."
                       onClick={() => {
                         if (!availabilityStart || !availabilityEnd) {
                           toast.error("Wybierz daty dostępności.");
@@ -492,7 +505,7 @@ export default function PlaceDetailPage() {
                       }}
                     >
                       Dodaj
-                    </button>
+                    </Button>
                   </div>
                   <h3 className="section-title" style={{ fontSize: 16, marginBottom: 0 }}>
                     Lista terminów
@@ -504,9 +517,8 @@ export default function PlaceDetailPage() {
                         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
                       >
                         <span className="muted">{formatRangeLabel(range)}</span>
-                        <button
-                          type="button"
-                          className="secondary-button"
+                        <Button
+                          variant="secondary"
                           onClick={() =>
                             deleteAvailabilityMutation.mutate(
                               { rangeId: range.id, placeId },
@@ -517,7 +529,7 @@ export default function PlaceDetailPage() {
                           }
                         >
                           Usuń
-                        </button>
+                        </Button>
                       </div>
                     ))
                   ) : (
@@ -525,15 +537,16 @@ export default function PlaceDetailPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </SectionCard>
           ) : null}
           <div className="place-details-row">
-            <div className="card">
-              <h2 className="section-title">Zasady domu</h2>
+            <SectionCard title="Zasady domu">
               {isOwner ? (
                 <div style={{ display: "grid", gap: 12 }}>
                   <textarea value={rules} onChange={(event) => setRules(event.target.value)} rows={4} />
-                  <button
+                  <Button
+                    loading={rulesIsPending}
+                    loadingLabel="Zapisywanie..."
                     onClick={() =>
                       rulesMutation.mutate(
                         { placeId, rules },
@@ -545,15 +558,14 @@ export default function PlaceDetailPage() {
                     }
                   >
                     Zapisz zasady
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <p className="muted">{rules || "Brak zasad."}</p>
               )}
-            </div>
+            </SectionCard>
 
-            <div className="card">
-              <h2 className="section-title">Przewodnik</h2>
+            <SectionCard title="Przewodnik">
               {GUIDE_LABELS.map((item) => (
                 <div key={item.key} style={{ display: "grid", gap: 8, marginBottom: 12 }}>
                   <strong>{item.label}</strong>
@@ -574,7 +586,9 @@ export default function PlaceDetailPage() {
                 </div>
               ))}
               {isOwner ? (
-                <button
+                <Button
+                  loading={guidesIsPending}
+                  loadingLabel="Zapisywanie..."
                   onClick={() =>
                     guidesMutation.mutate(
                       {
@@ -592,9 +606,9 @@ export default function PlaceDetailPage() {
                   }
                 >
                   Zapisz przewodnik
-                </button>
+                </Button>
               ) : null}
-            </div>
+            </SectionCard>
           </div>
         </div>
     </div>

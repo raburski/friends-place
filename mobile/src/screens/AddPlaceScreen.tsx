@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { PlacesStackParamList } from "../navigation/PlacesStack";
 import { useMobileApiOptions } from "../api/useMobileApiOptions";
 import { useCreatePlaceMutation } from "../../../shared/query/hooks/useMutations";
 import { type Theme, useTheme } from "../theme";
+import { Button } from "../ui/Button";
 
 type PlacesNav = NativeStackNavigationProp<PlacesStackParamList, "AddPlace">;
 
@@ -48,8 +49,12 @@ export function AddPlaceScreen() {
         value={address}
         onChangeText={setAddress}
       />
-      <Pressable
-        style={[styles.button, !canSubmit && styles.buttonDisabled]}
+      <Button
+        label="Dodaj miejsce"
+        loading={isSubmitting}
+        loadingLabel="Zapisywanie..."
+        disabled={!canSubmit}
+        style={styles.submitButton}
         onPress={async () => {
           if (!canSubmit) {
             return;
@@ -62,11 +67,7 @@ export function AddPlaceScreen() {
             setError("Nie udało się dodać miejsca.");
           }
         }}
-      >
-        <Text style={styles.buttonText}>
-          {isSubmitting ? "Zapisywanie..." : "Dodaj miejsce"}
-        </Text>
-      </Pressable>
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -105,19 +106,8 @@ const createStyles = (theme: Theme) =>
     borderWidth: 1,
     borderColor: theme.colors.border
   },
-  button: {
-    marginTop: 8,
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999
-  },
-  buttonDisabled: {
-    opacity: 0.6
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600"
+  submitButton: {
+    marginTop: 8
   },
   error: {
     color: theme.colors.error,

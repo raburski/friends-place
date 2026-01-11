@@ -4,6 +4,9 @@ import { useMemo } from "react";
 import { useWebApiOptions } from "../../_components/useWebApiOptions";
 import { useNotificationsQuery } from "../../../shared/query/hooks/useQueries";
 import { useMarkNotificationsReadMutation } from "../../../shared/query/hooks/useMutations";
+import { Button } from "../../_components/Button";
+import { SectionCard } from "../../_components/SectionCard";
+import { ScreenLayout } from "../../_components/ScreenLayout";
 
 const labels: Record<string, string> = {
   friend_accepted: "Zaproszenie przyjęte",
@@ -34,21 +37,26 @@ export default function NotificationsPage() {
   const error = notificationsQuery.isError ? "Nie udało się pobrać powiadomień." : null;
 
   const markReadMutation = useMarkNotificationsReadMutation(apiOptions);
+  const markReadIsPending =
+    (markReadMutation as { isPending?: boolean }).isPending ??
+    (markReadMutation as { isLoading?: boolean }).isLoading ??
+    false;
 
   const unreadIds = notifications.filter((item) => !item.readAt).map((item) => item.id);
 
   return (
-    <div>
-      <h1 className="page-title">Powiadomienia</h1>
+    <ScreenLayout title="Powiadomienia">
       {error ? <p className="muted">{error}</p> : null}
       {unreadIds.length > 0 ? (
-        <button
+        <Button
+          loading={markReadIsPending}
+          loadingLabel="Oznaczanie..."
           onClick={() => markReadMutation.mutate(unreadIds)}
         >
           Oznacz jako przeczytane
-        </button>
+        </Button>
       ) : null}
-      <div className="card">
+      <SectionCard>
         {notifications.length === 0 ? (
           <p className="muted">Brak powiadomień.</p>
         ) : (
@@ -59,8 +67,8 @@ export default function NotificationsPage() {
             </div>
           ))
         )}
-      </div>
-    </div>
+      </SectionCard>
+    </ScreenLayout>
   );
 }
 

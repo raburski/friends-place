@@ -10,6 +10,7 @@ import { Toaster } from "react-hot-toast";
 import { useWebApiOptions } from "../../_components/useWebApiOptions";
 import { useMeQuery, useNotificationsQuery } from "../../../shared/query/hooks/useQueries";
 import { useUpdateProfileMutation } from "../../../shared/query/hooks/useMutations";
+import { Button } from "../../_components/Button";
 
 const links = [
   { href: "/places", label: "Miejsca", Icon: House },
@@ -136,9 +137,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 onChange={(event) => setHandle(event.target.value)}
                 placeholder="Handle"
               />
-              <button
-                type="button"
+              <Button
                 disabled={profileSaving}
+                loading={profileSaving}
+                loadingLabel="Zapisywanie..."
                 onClick={async () => {
                   setProfileSaving(true);
                   setProfileError(null);
@@ -159,7 +161,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 Zapisz profil
-              </button>
+              </Button>
             </div>
             {profileError ? <p className="muted">{profileError}</p> : null}
           </div>
@@ -197,16 +199,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="app-topbar">
           <div className="app-topbar__actions">
             <div className="popover popover--left" ref={popoverRef}>
-              <button
-                type="button"
-                className="secondary-button popover-trigger"
+              <Button
+                variant="secondary"
+                className="popover-trigger"
                 onClick={() => setNotificationsOpen((current) => !current)}
                 aria-label="Powiadomienia"
                 aria-expanded={notificationsOpen}
+                icon={<Bell size={20} weight={notificationsOpen ? "fill" : "regular"} />}
               >
-                <Bell size={20} weight={notificationsOpen ? "fill" : "regular"} />
                 {unreadCount > 0 ? <span className="count-badge">{unreadCount}</span> : null}
-              </button>
+              </Button>
               {notificationsVisible ? (
                 <div className={notificationsActive ? "popover-panel popover-panel--open" : "popover-panel"}>
                   <div className="popover-header">
@@ -237,13 +239,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="pill">⌘K</span>
           </div>
           <div className="app-topbar__actions">
-            <button className="secondary-button" type="button">
+            <Button variant="secondary">
               Polecenia
-            </button>
+            </Button>
             {status === "authenticated" ? null : (
-              <button type="button" className="secondary-button" onClick={() => signIn()}>
+              <Button variant="secondary" onClick={() => signIn()}>
                 Zaloguj
-              </button>
+              </Button>
             )}
           </div>
         </header>

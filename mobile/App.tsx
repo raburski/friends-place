@@ -10,6 +10,7 @@ import { ToastProvider } from "./src/ui/ToastProvider";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryProvider } from "./src/api/QueryProvider";
 import { ThemeProvider, useTheme } from "./src/theme";
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 
 function AppContent() {
   const theme = useTheme();
@@ -47,16 +48,18 @@ function AppContent() {
 
   return (
     <SafeAreaProvider>
-      <QueryProvider>
-        <SessionProvider>
-          <NotificationsProvider>
-            <ToastProvider>
-              <RootNavigator />
-              <StatusBar style={theme.mode === "dark" ? "light" : "dark"} backgroundColor={theme.colors.bg} />
-            </ToastProvider>
-          </NotificationsProvider>
-        </SessionProvider>
-      </QueryProvider>
+      <ActionSheetProvider>
+        <QueryProvider>
+          <SessionProvider>
+            <NotificationsProvider>
+              <ToastProvider>
+                <RootNavigator />
+                <StatusBar style={theme.mode === "dark" ? "light" : "dark"} backgroundColor={theme.colors.bg} />
+              </ToastProvider>
+            </NotificationsProvider>
+          </SessionProvider>
+        </QueryProvider>
+      </ActionSheetProvider>
     </SafeAreaProvider>
   );
 }

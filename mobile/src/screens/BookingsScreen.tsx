@@ -1,11 +1,17 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle, RefreshControl } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, StyleSheet, RefreshControl } from "react-native";
 import { formatDate } from "../utils/date";
 import { type Theme, useTheme } from "../theme";
 import { useMobileApiOptions, useMobileApiQueryOptions } from "../api/useMobileApiOptions";
 import { useBookingsQuery } from "../../../shared/query/hooks/useQueries";
 import { useApproveBookingMutation, useDeclineBookingMutation } from "../../../shared/query/hooks/useMutations";
+import { Button } from "../ui/Button";
+import { EmptyView } from "../ui/EmptyView";
+import { LoadingView } from "../ui/LoadingView";
+import { List } from "../ui/List";
+import { ListRow } from "../ui/ListRow";
+import { Pill, type PillTone } from "../ui/Pill";
+import { Screen } from "../ui/Screen";
 
 type Booking = {
   id: string;
@@ -25,6 +31,14 @@ export function BookingsScreen() {
   const historyQuery = useBookingsQuery("history", apiQueryOptions);
   const approveMutation = useApproveBookingMutation(apiOptions);
   const declineMutation = useDeclineBookingMutation(apiOptions);
+  const approveIsPending =
+    (approveMutation as { isPending?: boolean }).isPending ??
+    (approveMutation as { isLoading?: boolean }).isLoading ??
+    false;
+  const declineIsPending =
+    (declineMutation as { isPending?: boolean }).isPending ??
+    (declineMutation as { isLoading?: boolean }).isLoading ??
+    false;
 
   const myStays = useMemo(
     () => (currentQuery.data?.data?.myStays as Booking[]) ?? [],
@@ -44,6 +58,21 @@ export function BookingsScreen() {
   const error =
     currentQuery.isError || historyQuery.isError ? "Nie udało się pobrać rezerwacji." : null;
   const loading = currentQuery.isLoading || historyQuery.isLoading;
+  const dateRange = (booking: Booking) =>
+    `${formatDate(booking.startDate)} → ${formatDate(booking.endDate)}`;
+
+  const statusTone = (status: string): PillTone => {
+    switch (status) {
+      case "requested":
+        return "accent";
+      case "declined":
+        return "danger";
+      case "canceled":
+        return "muted";
+      default:
+        return "primary";
+    }
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -52,258 +81,128 @@ export function BookingsScreen() {
   }, [currentQuery, historyQuery]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        refreshControl={
+    <Screen
+      title="Rezerwacje"
+      scrollProps={{
+        refreshControl: (
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={theme.colors.primary}
             colors={[theme.colors.primary]}
           />
-        }
-      >
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Rezerwacje</Text>
-        </View>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {loading ? <Text style={styles.muted}>Ładowanie...</Text> : null}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Moje pobyty</Text>
-          {myStays.length === 0 ? (
-            <Text style={styles.muted}>Brak pobytów.</Text>
-          ) : (
-            myStays.map((booking) => {
-              const statusKey = `status_${booking.status}` as keyof typeof styles;
-              const statusTextKey = `statusText_${booking.status}` as keyof typeof styles;
-              const statusStyle = styles[statusKey] as ViewStyle;
-              const statusTextStyle = styles[statusTextKey] as TextStyle;
-
-              return (
-                <View key={booking.id} style={styles.bookingCard}>
-                  <Text style={styles.cardTitle}>Pobyt</Text>
-                  <Text style={styles.cardText}>
-                    {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
-                  </Text>
-                  <View style={[styles.statusPill, statusStyle]}>
-                    <Text style={[styles.statusText, statusTextStyle]}>
-                      {booking.status}
-                    </Text>
-                  </View>
+        )
+      }}
+    >
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <List title="Moje pobyty">
+        {loading ? (
+          <LoadingView />
+        ) : myStays.length === 0 ? (
+          <EmptyView message="Brak pobytów." />
+        ) : (
+          myStays.map((booking, index) => (
+            <ListRow key={booking.id} isLastRow={index === myStays.length - 1}>
+              <View style={styles.rowContent}>
+                <View style={styles.rowHeader}>
+                  <Text style={styles.rowTitle}>Pobyt</Text>
+                  <Pill label={booking.status.toUpperCase()} tone={statusTone(booking.status)} />
                 </View>
-              );
-            })
-          )}
-        </View>
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>U mnie</Text>
-          {atMyPlaces.length === 0 ? (
-            <Text style={styles.muted}>Brak rezerwacji.</Text>
-          ) : (
-            atMyPlaces.map((booking) => {
-              const statusKey = `status_${booking.status}` as keyof typeof styles;
-              const statusTextKey = `statusText_${booking.status}` as keyof typeof styles;
-              const statusStyle = styles[statusKey] as ViewStyle;
-              const statusTextStyle = styles[statusTextKey] as TextStyle;
-
-              return (
-                <View key={booking.id} style={styles.bookingCard}>
-                  <Text style={styles.cardTitle}>Rezerwacja</Text>
-                  <Text style={styles.cardText}>
-                    {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
-                  </Text>
-                  <View style={[styles.statusPill, statusStyle]}>
-                    <Text style={[styles.statusText, statusTextStyle]}>
-                      {booking.status}
-                    </Text>
-                  </View>
-                  {booking.status === "requested" ? (
-                    <View style={styles.buttonRow}>
-                      <Pressable
-                        style={styles.smallButton}
-                        onPress={async () => {
-                          approveMutation.mutate(booking.id);
-                        }}
-                      >
-                        <Text style={styles.smallButtonText}>Akceptuj</Text>
-                      </Pressable>
-                      <Pressable
-                        style={[styles.smallButton, styles.secondaryButton]}
-                        onPress={async () => {
-                          declineMutation.mutate(booking.id);
-                        }}
-                      >
-                        <Text style={[styles.smallButtonText, styles.secondaryButtonText]}>
-                          Odrzuć
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
+                <Text style={styles.rowSubtitle}>{dateRange(booking)}</Text>
+              </View>
+            </ListRow>
+          ))
+        )}
+      </List>
+      <List title="U mnie">
+        {loading ? (
+          <LoadingView />
+        ) : atMyPlaces.length === 0 ? (
+          <EmptyView message="Brak rezerwacji." />
+        ) : (
+          atMyPlaces.map((booking, index) => (
+            <ListRow key={booking.id} isLastRow={index === atMyPlaces.length - 1}>
+              <View style={styles.rowContent}>
+                <View style={styles.rowHeader}>
+                  <Text style={styles.rowTitle}>Rezerwacja</Text>
+                  <Pill label={booking.status.toUpperCase()} tone={statusTone(booking.status)} />
                 </View>
-              );
-            })
-          )}
-        </View>
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Poprzednie</Text>
-          {history.length === 0 ? (
-            <Text style={styles.muted}>Brak historii.</Text>
-          ) : (
-            history.map((booking) => {
-              const statusKey = `status_${booking.status}` as keyof typeof styles;
-              const statusTextKey = `statusText_${booking.status}` as keyof typeof styles;
-              const statusStyle = styles[statusKey] as ViewStyle;
-              const statusTextStyle = styles[statusTextKey] as TextStyle;
-
-              return (
-                <View key={booking.id} style={styles.bookingCard}>
-                  <Text style={styles.cardTitle}>Historia</Text>
-                  <Text style={styles.cardText}>
-                    {formatDate(booking.startDate)} → {formatDate(booking.endDate)}
-                  </Text>
-                  <View style={[styles.statusPill, statusStyle]}>
-                    <Text style={[styles.statusText, statusTextStyle]}>
-                      {booking.status}
-                    </Text>
+                <Text style={styles.rowSubtitle}>{dateRange(booking)}</Text>
+                {booking.status === "requested" ? (
+                  <View style={styles.buttonRow}>
+                    <Button
+                      label="Akceptuj"
+                      size="sm"
+                      loading={approveIsPending}
+                      onPress={async () => {
+                        approveMutation.mutate(booking.id);
+                      }}
+                    />
+                    <Button
+                      label="Odrzuć"
+                      size="sm"
+                      variant="secondary"
+                      loading={declineIsPending}
+                      onPress={async () => {
+                        declineMutation.mutate(booking.id);
+                      }}
+                    />
                   </View>
+                ) : null}
+              </View>
+            </ListRow>
+          ))
+        )}
+      </List>
+      <List title="Poprzednie">
+        {loading ? (
+          <LoadingView />
+        ) : history.length === 0 ? (
+          <EmptyView message="Brak historii." />
+        ) : (
+          history.map((booking, index) => (
+            <ListRow key={booking.id} isLastRow={index === history.length - 1}>
+              <View style={styles.rowContent}>
+                <View style={styles.rowHeader}>
+                  <Text style={styles.rowTitle}>Historia</Text>
+                  <Pill label={booking.status.toUpperCase()} tone={statusTone(booking.status)} />
                 </View>
-              );
-            })
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+                <Text style={styles.rowSubtitle}>{dateRange(booking)}</Text>
+              </View>
+            </ListRow>
+          ))
+        )}
+      </List>
+    </Screen>
   );
 }
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.bg
+  error: {
+    color: theme.colors.error
   },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 0,
-    gap: 16,
-    backgroundColor: theme.colors.bg
+  rowContent: {
+    gap: 6
   },
-  headerRow: {
+  rowHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12
   },
-  title: {
-    fontSize: 30,
-    fontWeight: "600",
-    fontFamily: "Fraunces_600SemiBold",
-    color: theme.colors.text
-  },
-  sectionCard: {
-    padding: 16,
-    borderRadius: theme.radius.sheet,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    gap: 12,
-    ...theme.shadow.soft
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: theme.colors.text,
-    fontFamily: "Fraunces_600SemiBold"
-  },
-  error: {
-    color: theme.colors.error
-  },
-  muted: {
-    color: theme.colors.muted
-  },
-  bookingCard: {
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
-    gap: 6
-  },
-  cardTitle: {
+  rowTitle: {
     fontSize: 14,
     fontWeight: "600",
     color: theme.colors.text
   },
-  cardText: {
+  rowSubtitle: {
     fontSize: 13,
     color: theme.colors.muted
-  },
-  statusPill: {
-    alignSelf: "flex-start",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: theme.radius.pill
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase"
-  },
-  status_requested: {
-    backgroundColor: theme.colors.accentSoft
-  },
-  status_approved: {
-    backgroundColor: theme.colors.primarySoft
-  },
-  status_declined: {
-    backgroundColor: theme.colors.errorSoft
-  },
-  status_canceled: {
-    backgroundColor: theme.colors.mutedSoft
-  },
-  status_completed: {
-    backgroundColor: theme.colors.primarySoft
-  },
-  statusText_requested: {
-    color: theme.colors.accent
-  },
-  statusText_approved: {
-    color: theme.colors.primary
-  },
-  statusText_declined: {
-    color: theme.colors.error
-  },
-  statusText_canceled: {
-    color: theme.colors.muted
-  },
-  statusText_completed: {
-    color: theme.colors.primary
   },
   buttonRow: {
     flexDirection: "row",
     gap: 8,
     marginTop: 10
-  },
-  smallButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.primary
-  },
-  smallButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 12
-  },
-  secondaryButton: {
-    backgroundColor: theme.colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: theme.colors.border
-  },
-  secondaryButtonText: {
-    color: theme.colors.accent
   }
   });

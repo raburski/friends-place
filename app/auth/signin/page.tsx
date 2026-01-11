@@ -3,6 +3,7 @@
 import { DiscordLogo } from "@phosphor-icons/react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
+import { Button } from "../../_components/Button";
 
 export default function SignInPage() {
   const searchParams = useSearchParams();
@@ -18,16 +19,15 @@ export default function SignInPage() {
             <h1>Użyj domofonu, kolego</h1>
           </div>
           <div className="auth-actions">
-            <button
-              type="button"
+            <Button
               className="cta cta-discord"
+              icon={<DiscordLogo className="cta-icon" size={18} weight="bold" />}
               onClick={() => {
                 void signIn("discord", { callbackUrl });
               }}
             >
-              <DiscordLogo className="cta-icon" size={18} weight="bold" />
               Kontynuuj z Discord
-            </button>
+            </Button>
           </div>
         </div>
       </section>

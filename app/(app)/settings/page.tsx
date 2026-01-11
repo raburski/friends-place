@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
+import { Button } from "../../_components/Button";
+import { SectionCard } from "../../_components/SectionCard";
+import { ConfirmDialog } from "../../_components/ConfirmDialog";
+import { ScreenLayout } from "../../_components/ScreenLayout";
 
 type ThemeMode = "auto" | "light" | "dark";
 
@@ -23,51 +27,35 @@ export default function SettingsPage() {
   };
 
   return (
-    <div>
-      <h1 className="page-title">Ustawienia</h1>
-      <div className="card">
-        <h2 className="section-title">Motyw</h2>
+    <ScreenLayout title="Ustawienia">
+      <SectionCard title="Motyw">
         <div className="theme-toggle">
           {(["auto", "light", "dark"] as ThemeMode[]).map((value) => (
-            <button
+            <Button
               key={value}
               className={mode === value ? "theme-toggle__button theme-toggle__button--active" : "theme-toggle__button"}
               onClick={() => onChange(value)}
             >
               {labelFor(value)}
-            </button>
+            </Button>
           ))}
         </div>
-      </div>
-      <div className="card">
-        <h2 className="section-title">Konto</h2>
-        <p className="muted">Zakończ bieżącą sesję na tym urządzeniu.</p>
-        <button type="button" className="secondary-button" onClick={() => setConfirmOpen(true)}>
+      </SectionCard>
+      <SectionCard title="Konto" subtitle="Zakończ bieżącą sesję na tym urządzeniu.">
+        <Button variant="secondary" onClick={() => setConfirmOpen(true)}>
           Wyloguj
-        </button>
-      </div>
+        </Button>
+      </SectionCard>
 
-      {confirmOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <h2 className="section-title">Wylogować?</h2>
-            <p className="muted">Twoja sesja zostanie zakończona na tym urządzeniu.</p>
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setConfirmOpen(false)}
-              >
-                Anuluj
-              </button>
-              <button type="button" onClick={() => signOut({ callbackUrl: "/" })}>
-                Wyloguj
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Wylogować?"
+        description="Twoja sesja zostanie zakończona na tym urządzeniu."
+        confirmLabel="Wyloguj"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => signOut({ callbackUrl: "/" })}
+      />
+    </ScreenLayout>
   );
 }
 
