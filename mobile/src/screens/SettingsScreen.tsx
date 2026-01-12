@@ -1,10 +1,14 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import * as Notifications from "expo-notifications";
 import { useSession } from "../auth/useSession";
 import { type Theme, type ThemePreference, useTheme, useThemePreference } from "../theme";
 import { Button } from "../ui/Button";
+import { Pill } from "../ui/Pill";
 import { Screen } from "../ui/Screen";
 import { SectionCard } from "../ui/SectionCard";
+import { useNotificationPermissions } from "../notifications/useNotificationPermissions";
+import { usePushTokenRegistration } from "../notifications/usePushTokenRegistration";
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: "system", label: "System" },
@@ -17,6 +21,67 @@ export function SettingsScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { preference, setPreference } = useThemePreference();
+  const {
+    loading: notificationsLoading,
+    requesting: notificationsRequesting,
+    enabled: notificationsEnabled,
+    canAskAgain: notificationsCanAskAgain,
+    status: notificationStatus,
+    requestPermission,
+    openSettings
+  } = useNotificationPermissions();
+  const { register, loading: pushTokenLoading } = usePushTokenRegistration();
+
+  const notificationStatusLabel = notificationsLoading
+    ? "Sprawdzanie..."
+    : notificationsEnabled
+      ? "Włączone"
+      : notificationStatus === Notifications.PermissionStatus.UNDETERMINED
+        ? "Nieustawione"
+      : "Wyłączone";
+
+  const notificationStatusTone = notificationsLoading
+    ? "muted"
+    : notificationsEnabled
+      ? "primary"
+      : notificationStatus === Notifications.PermissionStatus.DENIED
+        ? "danger"
+        : "muted";
+
+  const notificationDescription = notificationsEnabled
+    ? "Powiadomienia push są aktywne."
+    : notificationStatus === Notifications.PermissionStatus.UNDETERMINED
+      ? "Nie prosiliśmy jeszcze o zgodę na powiadomienia."
+      : "Powiadomienia są wyłączone w ustawieniach systemu.";
+
+  const notificationActionLabel = notificationsCanAskAgain ? "Włącz powiadomienia" : "Otwórz ustawienia";
+  const notificationActionLoading = notificationsRequesting || pushTokenLoading;
+
+  const handleNotificationAction = useCallback(async () => {
+    if (notificationsLoading || notificationsEnabled) {
+      return;
+    }
+
+    if (!notificationsCanAskAgain) {
+      openSettings().catch(() => null);
+      return;
+    }
+
+    const permissions = await requestPermission();
+    const enabled =
+      permissions?.granted ||
+      permissions?.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+    if (enabled) {
+      await register();
+    }
+  }, [
+    notificationsCanAskAgain,
+    notificationsEnabled,
+    notificationsLoading,
+    openSettings,
+    register,
+    requestPermission
+  ]);
 
   return (
     <Screen withHeader contentStyle={styles.screenContent}>
@@ -39,6 +104,24 @@ export function SettingsScreen() {
             );
           })}
         </View>
+      </SectionCard>
+      <SectionCard
+        title="Powiadomienia"
+        subtitle="Informacje o rezerwacjach i ważnych zmianach."
+        right={<Pill label={notificationStatusLabel} tone={notificationStatusTone} />}
+        contentStyle={styles.sectionContent}
+      >
+        <Text style={styles.notificationsDescription}>{notificationDescription}</Text>
+        {!notificationsLoading && !notificationsEnabled ? (
+          <Button
+            label={notificationActionLabel}
+            size="sm"
+            loading={notificationActionLoading}
+            loadingLabel="Włączanie..."
+            style={styles.notificationsAction}
+            onPress={handleNotificationAction}
+          />
+        ) : null}
       </SectionCard>
       <SectionCard title="Konto" subtitle="Zarządzaj swoim kontem i sesją." contentStyle={styles.sectionContent}>
         <Button label="Wyloguj" style={styles.inlineButton} onPress={revoke} />
@@ -83,5 +166,12 @@ const createStyles = (theme: Theme) =>
   inlineButton: {
     alignSelf: "flex-start",
     marginTop: 4
+  },
+  notificationsDescription: {
+    fontSize: 14,
+    color: theme.colors.muted
+  },
+  notificationsAction: {
+    alignSelf: "flex-start"
   }
   });

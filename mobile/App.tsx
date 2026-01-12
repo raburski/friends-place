@@ -6,6 +6,7 @@ import { useFonts as useFrauncesFonts, Fraunces_600SemiBold } from "@expo-google
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { SessionProvider } from "./src/auth/useSession";
 import { NotificationsProvider } from "./src/notifications/NotificationsProvider";
+import { PushTokenRegistrar } from "./src/notifications/PushTokenRegistrar";
 import { ToastProvider } from "./src/ui/ToastProvider";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryProvider } from "./src/api/QueryProvider";
@@ -51,6 +52,7 @@ function AppContent() {
       <ActionSheetProvider>
         <QueryProvider>
           <SessionProvider>
+            <PushTokenRegistrar />
             <NotificationsProvider>
               <ToastProvider>
                 <RootNavigator />
