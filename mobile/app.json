@@ -22,6 +22,7 @@
     },
     "android": {
       "package": "com.raburski.domykolegow"
-    }
+    },
+    "plugins": ["expo-notifications"]
   }
 }

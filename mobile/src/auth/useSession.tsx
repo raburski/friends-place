@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { loadSession, saveSession, clearSession, MobileSession } from "./session";
 import { exchangeSession, refreshSession, revokeSession } from "./api";
+import { apiPost } from "../api/client";
+import { clearPushToken, loadPushToken } from "../notifications/pushTokenStore";
 
 type SessionContextValue = {
   session: MobileSession | null;
@@ -46,6 +48,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const revoke = async () => {
     if (!session) {
       return;
+    }
+    try {
+      const pushToken = await loadPushToken();
+      if (pushToken) {
+        await apiPost("/api/push/unregister", session.token, { token: pushToken });
+        await clearPushToken();
+      }
+    } catch {
+      // If logout continues, we can retry token cleanup on next login if needed.
     }
     await revokeSession(session.token);
     await clearSession();
